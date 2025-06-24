@@ -1,4 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { User } from '../types';
@@ -21,29 +22,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchUserProfile(session.user.id);
-        } else {
-          setUserProfile(null);
+    const loadStoredUser = async () => {
+      try {
+        // Check for stored mock user
+        const storedUser = await AsyncStorage.getItem('mock_user');
+        const storedProfile = await AsyncStorage.getItem('mock_profile');
+        
+        if (storedUser && storedProfile) {
+          const mockUser = JSON.parse(storedUser);
+          const profile = JSON.parse(storedProfile);
+          
+          setUser(mockUser);
+          setUserProfile({
+            ...profile,
+            createdAt: new Date(profile.createdAt),
+            updatedAt: new Date(profile.updatedAt),
+          });
         }
+      } catch (error) {
+        console.error('Error loading stored user:', error);
+      } finally {
         setLoading(false);
       }
-    );
-
-    return () => subscription.unsubscribe();
+    };
+    
+    loadStoredUser();
   }, []);
 
   const fetchUserProfile = async (userId: string) => {
@@ -57,6 +60,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       
       if (data) {
+        // Also fetch user patterns
+        const { data: userPatternsData } = await supabase
+          .from('user_patterns')
+          .select('pattern_id, status')
+          .eq('user_id', userId);
+
+        const knownPatterns = userPatternsData?.filter(p => p.status === 'known').map(p => p.pattern_id) || [];
+        const wantToLearnPatterns = userPatternsData?.filter(p => p.status === 'want_to_learn').map(p => p.pattern_id) || [];
+        const avoidPatterns = userPatternsData?.filter(p => p.status === 'want_to_avoid').map(p => p.pattern_id) || [];
+
         const profile: User = {
           id: data.id,
           name: data.name,
@@ -65,9 +78,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           experience: data.experience,
           preferredProps: data.preferred_props,
           availability: data.availability,
-          knownPatterns: [],
-          wantToLearnPatterns: [],
-          avoidPatterns: [],
+          knownPatterns,
+          wantToLearnPatterns,
+          avoidPatterns,
           createdAt: new Date(data.created_at),
           updatedAt: new Date(data.updated_at),
         };
@@ -81,28 +94,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, userData: Partial<User>) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
+      // For development, create a mock user
+      const mockUser = {
+        id: Math.random().toString(36).substr(2, 9),
         email,
-        password,
-      });
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+        user_metadata: {},
+        app_metadata: {},
+      } as any;
 
-      if (error) throw error;
+      // Create mock profile
+      const profile: User = {
+        id: mockUser.id,
+        name: userData.name!,
+        email: mockUser.email,
+        avatar: '',
+        experience: userData.experience!,
+        preferredProps: userData.preferredProps!,
+        availability: userData.availability || [],
+        knownPatterns: [],
+        wantToLearnPatterns: [],
+        avoidPatterns: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      if (data.user) {
-        // Create user profile
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            email: data.user.email!,
-            name: userData.name!,
-            experience: userData.experience!,
-            preferred_props: userData.preferredProps!,
-            availability: userData.availability || [],
-          });
+      // Store in AsyncStorage for persistence
+      await AsyncStorage.setItem('mock_user', JSON.stringify(mockUser));
+      await AsyncStorage.setItem('mock_profile', JSON.stringify(profile));
 
-        if (profileError) throw profileError;
-      }
+      setUser(mockUser);
+      setUserProfile(profile);
     } catch (error) {
       console.error('Error signing up:', error);
       throw error;
@@ -114,12 +137,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // For development, try to get mock user from AsyncStorage
+      const storedUser = await AsyncStorage.getItem('mock_user');
+      const storedProfile = await AsyncStorage.getItem('mock_profile');
+      
+      if (storedUser && storedProfile) {
+        const mockUser = JSON.parse(storedUser);
+        const profile = JSON.parse(storedProfile);
+        
+        if (mockUser.email === email) {
+          setUser(mockUser);
+          setUserProfile({
+            ...profile,
+            createdAt: new Date(profile.createdAt),
+            updatedAt: new Date(profile.updatedAt),
+          });
+          return;
+        }
+      }
 
-      if (error) throw error;
+      // Create a demo user if no stored user found
+      const mockUser = {
+        id: 'demo-user-123',
+        email,
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+        user_metadata: {},
+        app_metadata: {},
+      } as any;
+
+      const demoProfile: User = {
+        id: mockUser.id,
+        name: 'Demo User',
+        email: mockUser.email,
+        avatar: '',
+        experience: 'Intermediate',
+        preferredProps: ['clubs', 'balls'],
+        availability: [
+          { day: 'monday', startTime: '18:00', endTime: '20:00' },
+          { day: 'wednesday', startTime: '19:00', endTime: '21:00' },
+        ],
+        knownPatterns: ['1', '2', '3'],
+        wantToLearnPatterns: ['4', '5'],
+        avoidPatterns: ['6'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await AsyncStorage.setItem('mock_user', JSON.stringify(mockUser));
+      await AsyncStorage.setItem('mock_profile', JSON.stringify(demoProfile));
+
+      setUser(mockUser);
+      setUserProfile(demoProfile);
     } catch (error) {
       console.error('Error signing in:', error);
       throw error;
@@ -131,8 +200,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      // Clear mock data
+      await AsyncStorage.removeItem('mock_user');
+      await AsyncStorage.removeItem('mock_profile');
+      
+      setUser(null);
+      setUserProfile(null);
     } catch (error) {
       console.error('Error signing out:', error);
       throw error;
@@ -145,20 +218,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) throw new Error('No user logged in');
 
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({
-          name: updates.name,
-          experience: updates.experience,
-          preferred_props: updates.preferredProps,
-          availability: updates.availability,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id);
+      // Update mock profile in localStorage
+      const updatedProfile = {
+        ...userProfile!,
+        ...updates,
+        updatedAt: new Date(),
+      };
 
-      if (error) throw error;
-
-      await fetchUserProfile(user.id);
+      await AsyncStorage.setItem('mock_profile', JSON.stringify(updatedProfile));
+      setUserProfile(updatedProfile);
     } catch (error) {
       console.error('Error updating profile:', error);
       throw error;

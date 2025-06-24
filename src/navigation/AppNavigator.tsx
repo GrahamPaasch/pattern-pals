@@ -13,6 +13,8 @@ import SignUpScreen from '../screens/SignUpScreen';
 import ProfileCreationScreen from '../screens/ProfileCreationScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import ProfileEditScreen from '../screens/ProfileEditScreen';
+import AvailabilityManagementScreen from '../screens/AvailabilityManagementScreen';
 import MatchesScreen from '../screens/MatchesScreen';
 import PatternsScreen from '../screens/PatternsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
@@ -26,6 +28,8 @@ export type RootStackParamList = {
     password: string;
   };
   MainTabs: undefined;
+  ProfileEdit: undefined;
+  AvailabilityManagement: undefined;
 };
 
 export type MainTabParamList = {
@@ -136,7 +140,39 @@ export default function AppNavigator() {
           </>
         ) : (
           // Main app flow
-          <RootStack.Screen name="MainTabs" component={MainTabs} />
+          <>
+            <RootStack.Screen name="MainTabs" component={MainTabs} />
+            <RootStack.Screen 
+              name="ProfileEdit" 
+              component={ProfileEditScreen}
+              options={{
+                headerShown: true,
+                title: 'Edit Profile',
+                headerStyle: {
+                  backgroundColor: '#6366f1',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <RootStack.Screen 
+              name="AvailabilityManagement" 
+              component={AvailabilityManagementScreen}
+              options={{
+                headerShown: true,
+                title: 'Manage Availability',
+                headerStyle: {
+                  backgroundColor: '#6366f1',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+          </>
         )}
       </RootStack.Navigator>
     </NavigationContainer>

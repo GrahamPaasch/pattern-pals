@@ -11,6 +11,8 @@
   "dependencies": {
     "@expo/cli": "^0.24.15",
     "@expo/vector-icons": "^14.0.4",
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-community/datetimepicker": "^8.4.2",
     "@react-navigation/bottom-tabs": "^6.6.1",
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/native-stack": "^6.11.0",
@@ -18,6 +20,7 @@
     "@supabase/supabase-js": "^2.39.0",
     "expo": "~53.0.12",
     "expo-font": "~13.3.1",
+    "expo-image-picker": "^16.1.4",
     "expo-linking": "~7.1.5",
     "expo-notifications": "~0.31.3",
     "expo-secure-store": "~14.2.3",

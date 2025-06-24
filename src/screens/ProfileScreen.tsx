@@ -6,11 +6,18 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuth } from '../hooks/useAuth';
+
+type ProfileScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProfileScreen() {
   const { userProfile, signOut } = useAuth();
+  const navigation = useNavigation<ProfileScreenNavigationProp>();
 
   const handleSignOut = async () => {
     try {
@@ -20,14 +27,26 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleEditProfile = () => {
+    navigation.navigate('ProfileEdit');
+  };
+
+  const handleManageAvailability = () => {
+    navigation.navigate('AvailabilityManagement');
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
-            <Text style={styles.avatarText}>
-              {userProfile?.name?.charAt(0).toUpperCase() || '?'}
-            </Text>
+            {userProfile?.avatar ? (
+              <Image source={{ uri: userProfile.avatar }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarText}>
+                {userProfile?.name?.charAt(0).toUpperCase() || '?'}
+              </Text>
+            )}
           </View>
           <Text style={styles.name}>{userProfile?.name}</Text>
           <Text style={styles.email}>{userProfile?.email}</Text>
@@ -53,15 +72,15 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Pattern Statistics</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>12</Text>
+              <Text style={styles.statNumber}>{userProfile?.knownPatterns?.length || 0}</Text>
               <Text style={styles.statLabel}>Known</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>5</Text>
+              <Text style={styles.statNumber}>{userProfile?.wantToLearnPatterns?.length || 0}</Text>
               <Text style={styles.statLabel}>Learning</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>2</Text>
+              <Text style={styles.statNumber}>{userProfile?.avoidPatterns?.length || 0}</Text>
               <Text style={styles.statLabel}>Avoiding</Text>
             </View>
           </View>
@@ -83,20 +102,23 @@ export default function ProfileScreen() {
               ))}
             </View>
           ) : (
-            <TouchableOpacity style={styles.addAvailabilityButton}>
+            <TouchableOpacity 
+              style={styles.addAvailabilityButton}
+              onPress={handleManageAvailability}
+            >
               <Text style={styles.addAvailabilityText}>+ Add Availability</Text>
             </TouchableOpacity>
           )}
         </View>
 
         <View style={styles.menuSection}>
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={handleEditProfile}>
             <Text style={styles.menuItemIcon}>✏️</Text>
             <Text style={styles.menuItemText}>Edit Profile</Text>
             <Text style={styles.menuItemChevron}>›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={handleManageAvailability}>
             <Text style={styles.menuItemIcon}>🕐</Text>
             <Text style={styles.menuItemText}>Manage Availability</Text>
             <Text style={styles.menuItemChevron}>›</Text>
@@ -151,6 +173,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   avatarText: {
     fontSize: 32,
