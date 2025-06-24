@@ -3,8 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 
 // Replace these with your actual Supabase project credentials
-const SUPABASE_URL = 'https://your-project.supabase.co';
-const SUPABASE_ANON_KEY = 'your-anon-key';
+// For now using placeholder values - the app will work with mock auth
+const SUPABASE_URL = 'https://demo.supabase.co';
+const SUPABASE_ANON_KEY = 'demo-key';
 
 // Custom storage implementation for React Native
 const ExpoSecureStoreAdapter = {
