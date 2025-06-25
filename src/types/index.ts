@@ -34,7 +34,9 @@ export interface Pattern {
   requiredJugglers: number;
   props: PropType[];
   videoUrl?: string;
-  tutorialUrl?: string;
+  globalSiteSwap?: string;
+  localSiteSwap?: string;
+  globalHandOrder?: string;
   description: string;
   tags: string[];
 }
