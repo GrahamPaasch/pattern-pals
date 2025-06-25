@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,14 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
+  Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/AppNavigator';
 import { patterns } from '../data/patterns';
+import { ConnectionService } from '../services/connections';
+import { useAuth } from '../hooks/useAuth';
 
 interface MockMatch {
   id: string;
@@ -58,13 +64,183 @@ const mockMatches: MockMatch[] = [
   },
 ];
 
-export default function MatchesScreen() {
+type MatchesScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+interface MatchesScreenProps {
+  // Using the navigation hook instead of prop for better stack access
+}
+
+export default function MatchesScreen({}: MatchesScreenProps) {
+  const navigation = useNavigation<MatchesScreenNavigationProp>();
+  const { user, userProfile } = useAuth();
   const [selectedTab, setSelectedTab] = useState<'matches' | 'requests'>('matches');
+  const [connectionRequests, setConnectionRequests] = useState<any[]>([]);
+  const [connectedUserIds, setConnectedUserIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    loadConnectionData();
+  }, [user]);
+
+  const loadConnectionData = async () => {
+    if (!user) return;
+
+    // Load connection requests for this user
+    const requests = await ConnectionService.getConnectionRequestsForUser(user.id);
+    setConnectionRequests(requests);
+
+    // Load existing connections to know which users we're already connected to
+    const connections = await ConnectionService.getConnectionsForUser(user.id);
+    const connectedIds = new Set(
+      connections.map(conn => 
+        conn.userId1 === user.id ? conn.userId2 : conn.userId1
+      )
+    );
+    setConnectedUserIds(connectedIds);
+  };
 
   const getScoreColor = (score: number) => {
     if (score >= 90) return '#10b981';
     if (score >= 75) return '#f59e0b';
     return '#6b7280';
+  };
+
+  const handleViewProfile = (match: MockMatch) => {
+    console.log('Attempting to navigate to UserProfileView with data:', {
+      userId: match.id,
+      name: match.name,
+      experience: match.experience,
+      score: match.score,
+      sharedPatterns: match.sharedPatterns,
+      canTeach: match.canTeach,
+      canLearn: match.canLearn,
+      distance: match.distance,
+      lastActive: match.lastActive,
+    });
+    
+    // Test with alert first
+    Alert.alert(
+      'View Profile',
+      `Navigating to ${match.name}'s profile...`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          onPress: () => {
+            try {
+              navigation.navigate('UserProfileView', {
+                userId: match.id,
+                name: match.name,
+                experience: match.experience,
+                score: match.score,
+                sharedPatterns: match.sharedPatterns,
+                canTeach: match.canTeach,
+                canLearn: match.canLearn,
+                distance: match.distance,
+                lastActive: match.lastActive,
+              });
+              console.log('Navigation command sent successfully');
+            } catch (error) {
+              console.error('Navigation error:', error);
+              Alert.alert('Navigation Error', String(error));
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleConnect = async (match: MockMatch) => {
+    console.log('Connect button pressed for match:', match.name);
+    
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to send connection requests.');
+      return;
+    }
+
+    // Check if already connected
+    if (connectedUserIds.has(match.id)) {
+      Alert.alert('Already Connected', `You're already connected with ${match.name}.`);
+      return;
+    }
+
+    // Check if request already sent
+    const hasPending = await ConnectionService.hasPendingRequest(user.id, match.id);
+    if (hasPending) {
+      Alert.alert('Request Pending', `You've already sent a connection request to ${match.name}.`);
+      return;
+    }
+
+    Alert.alert(
+      'Send Connection Request',
+      `Would you like to send a connection request to ${match.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Send Request',
+          onPress: async () => {
+            console.log('Sending connection request...');
+            const success = await ConnectionService.sendConnectionRequest(
+              user.id,
+              match.id,
+              userProfile?.name || 'Unknown',
+              match.name
+            );
+
+            if (success) {
+              console.log('Connection request sent successfully');
+              Alert.alert(
+                'Request Sent!',
+                `Your connection request has been sent to ${match.name}. They will be notified and can accept or decline your request.`,
+                [{ text: 'OK' }]
+              );
+            } else {
+              console.log('Failed to send connection request');
+              Alert.alert(
+                'Error',
+                'Failed to send connection request. Please try again.',
+                [{ text: 'OK' }]
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleAcceptRequest = async (request: any) => {
+    const success = await ConnectionService.acceptConnectionRequest(request.id);
+    if (success) {
+      Alert.alert(
+        'Connection Accepted!',
+        `You are now connected with ${request.fromUserName}. You can now schedule sessions and message each other.`,
+        [{ text: 'OK' }]
+      );
+      loadConnectionData(); // Refresh the data
+    } else {
+      Alert.alert('Error', 'Failed to accept connection request. Please try again.');
+    }
+  };
+
+  const handleDeclineRequest = async (request: any) => {
+    Alert.alert(
+      'Decline Connection Request',
+      `Are you sure you want to decline ${request.fromUserName}'s connection request?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Decline',
+          style: 'destructive',
+          onPress: async () => {
+            const success = await ConnectionService.declineConnectionRequest(request.id);
+            if (success) {
+              loadConnectionData(); // Refresh the data
+            } else {
+              Alert.alert('Error', 'Failed to decline connection request. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const getExperienceColor = (experience: string) => {
@@ -152,25 +328,49 @@ export default function MatchesScreen() {
         <View style={styles.actionButtons}>
           <TouchableOpacity 
             style={styles.secondaryButton}
-            onPress={() => {
-              // TODO: Navigate to user profile view
-              console.log('View profile for:', item.name);
-            }}
+            onPress={() => handleViewProfile(item)}
           >
             <Text style={styles.secondaryButtonText}>View Profile</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.primaryButton}
-            onPress={() => {
-              // TODO: Send connection request
-              console.log('Connect with:', item.name);
-            }}
+            onPress={() => handleConnect(item)}
           >
             <Text style={styles.primaryButtonText}>Connect</Text>
           </TouchableOpacity>
         </View>
       </View>
     </TouchableOpacity>
+  );
+
+  const renderRequestItem = ({ item }: { item: any }) => (
+    <View style={styles.requestCard}>
+      <View style={styles.requestHeader}>
+        <Text style={styles.requestName}>{item.fromUserName}</Text>
+        <Text style={styles.requestTime}>
+          {new Date(item.createdAt).toLocaleDateString()}
+        </Text>
+      </View>
+      
+      {item.message && (
+        <Text style={styles.requestMessage}>"{item.message}"</Text>
+      )}
+      
+      <View style={styles.requestActions}>
+        <TouchableOpacity 
+          style={styles.declineButton}
+          onPress={() => handleDeclineRequest(item)}
+        >
+          <Text style={styles.declineButtonText}>Decline</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.acceptButton}
+          onPress={() => handleAcceptRequest(item)}
+        >
+          <Text style={styles.acceptButtonText}>Accept</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 
   return (
@@ -205,13 +405,23 @@ export default function MatchesScreen() {
           showsVerticalScrollIndicator={false}
         />
       ) : (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateIcon}>📭</Text>
-          <Text style={styles.emptyStateTitle}>No Connection Requests</Text>
-          <Text style={styles.emptyStateText}>
-            When someone wants to connect with you, their requests will appear here.
-          </Text>
-        </View>
+        connectionRequests.length > 0 ? (
+          <FlatList
+            data={connectionRequests}
+            renderItem={renderRequestItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+          />
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateIcon}>📭</Text>
+            <Text style={styles.emptyStateTitle}>No Connection Requests</Text>
+            <Text style={styles.emptyStateText}>
+              When someone wants to connect with you, their requests will appear here.
+            </Text>
+          </View>
+        )
       )}
     </SafeAreaView>
   );
@@ -414,5 +624,71 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  requestCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  requestHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  requestName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  requestTime: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  requestMessage: {
+    fontSize: 14,
+    color: '#4b5563',
+    fontStyle: 'italic',
+    marginBottom: 12,
+    paddingLeft: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#e5e7eb',
+  },
+  requestActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  declineButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ef4444',
+    marginRight: 8,
+  },
+  declineButtonText: {
+    fontSize: 14,
+    color: '#ef4444',
+    fontWeight: '500',
+  },
+  acceptButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#10b981',
+  },
+  acceptButtonText: {
+    fontSize: 14,
+    color: '#ffffff',
+    fontWeight: '500',
   },
 });

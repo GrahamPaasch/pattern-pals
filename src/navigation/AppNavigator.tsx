@@ -22,6 +22,8 @@ import SessionSchedulingScreen from '../screens/SessionSchedulingScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import HelpSupportScreen from '../screens/HelpSupportScreen';
 import PatternContributionScreen from '../screens/PatternContributionScreen';
+import UserProfileViewScreen from '../screens/UserProfileViewScreen';
+import ScheduleScreen from '../screens/ScheduleScreen';
 
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -37,17 +39,30 @@ export type RootStackParamList = {
   SessionScheduling: {
     partnerId?: string;
     partnerName?: string;
+    sessionId?: string;
   };
   Settings: undefined;
   HelpSupport: undefined;
   PatternContribution: undefined;
+  Schedule: undefined;
+  UserProfileView: {
+    userId: string;
+    name: string;
+    experience: string;
+    score: number;
+    sharedPatterns: string[];
+    canTeach: string[];
+    canLearn: string[];
+    distance: string;
+    lastActive: string;
+  };
 };
 
 export type MainTabParamList = {
   Home: undefined;
   Matches: undefined;
   Patterns: undefined;
-  Notifications: undefined;
+  Schedule: undefined;
   Profile: undefined;
 };
 
@@ -71,8 +86,8 @@ function MainTabs() {
             case 'Patterns':
               iconName = focused ? 'library' : 'library-outline';
               break;
-            case 'Notifications':
-              iconName = focused ? 'notifications' : 'notifications-outline';
+            case 'Schedule':
+              iconName = focused ? 'calendar' : 'calendar-outline';
               break;
             case 'Profile':
               iconName = focused ? 'person' : 'person-outline';
@@ -110,9 +125,9 @@ function MainTabs() {
         options={{ title: 'Patterns' }}
       />
       <MainTab.Screen 
-        name="Notifications" 
-        component={NotificationsScreen} 
-        options={{ title: 'Notifications' }}
+        name="Schedule" 
+        component={ScheduleScreen} 
+        options={{ title: 'Schedule' }}
       />
       <MainTab.Screen 
         name="Profile" 
@@ -234,6 +249,36 @@ export default function AppNavigator() {
               options={{
                 headerShown: true,
                 title: 'Contribute Pattern',
+                headerStyle: {
+                  backgroundColor: '#6366f1',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <RootStack.Screen 
+              name="UserProfileView" 
+              component={UserProfileViewScreen}
+              options={{
+                headerShown: true,
+                title: 'Juggler Profile',
+                headerStyle: {
+                  backgroundColor: '#6366f1',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <RootStack.Screen 
+              name="Schedule" 
+              component={ScheduleScreen}
+              options={{
+                headerShown: true,
+                title: 'My Schedule',
                 headerStyle: {
                   backgroundColor: '#6366f1',
                 },

@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { useAuth } from '../hooks/useAuth';
+import { ScheduleService } from '../services/schedule';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 type SessionSchedulingNavigationProp = NativeStackNavigationProp<
@@ -29,6 +31,7 @@ interface Props {
 }
 
 export default function SessionSchedulingScreen({ navigation, route }: Props) {
+  const { user } = useAuth();
   const [sessionDate, setSessionDate] = useState(new Date());
   const [sessionTime, setSessionTime] = useState(new Date());
   const [location, setLocation] = useState('');
@@ -41,6 +44,11 @@ export default function SessionSchedulingScreen({ navigation, route }: Props) {
   const { partnerId, partnerName } = route.params || {};
 
   const handleScheduleSession = async () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be logged in to schedule sessions');
+      return;
+    }
+
     if (!location.trim()) {
       Alert.alert('Error', 'Please enter a location for the session');
       return;
@@ -48,20 +56,50 @@ export default function SessionSchedulingScreen({ navigation, route }: Props) {
 
     setLoading(true);
     try {
-      // TODO: Implement session scheduling API call
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
-      Alert.alert(
-        'Session Scheduled!',
-        `Your practice session${partnerName ? ` with ${partnerName}` : ''} has been scheduled for ${sessionDate.toLocaleDateString()} at ${sessionTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`,
-        [
-          { 
-            text: 'OK', 
-            onPress: () => navigation.goBack() 
-          }
-        ]
+      // Combine date and time
+      const scheduledDateTime = new Date(
+        sessionDate.getFullYear(),
+        sessionDate.getMonth(),
+        sessionDate.getDate(),
+        sessionTime.getHours(),
+        sessionTime.getMinutes()
       );
+
+      // Parse patterns
+      const patternList = patterns.split(',').map(p => p.trim()).filter(p => p.length > 0);
+
+      // Create session object
+      const sessionData = {
+        hostId: user.id,
+        partnerId: partnerId || undefined,
+        partnerName: partnerName || undefined,
+        scheduledTime: scheduledDateTime,
+        duration: 90, // Default 90 minutes
+        location: location.trim(),
+        plannedPatterns: patternList,
+        status: 'scheduled' as const,
+        notes: notes.trim() || undefined,
+      };
+
+      // Save to schedule service
+      const success = await ScheduleService.addSession(user.id, sessionData);
+
+      if (success) {
+        Alert.alert(
+          'Session Scheduled!',
+          `Your practice session${partnerName ? ` with ${partnerName}` : ''} has been scheduled for ${sessionDate.toLocaleDateString()} at ${sessionTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`,
+          [
+            { 
+              text: 'OK', 
+              onPress: () => navigation.goBack() 
+            }
+          ]
+        );
+      } else {
+        throw new Error('Failed to save session');
+      }
     } catch (error) {
+      console.error('Error scheduling session:', error);
       Alert.alert('Error', 'Failed to schedule session. Please try again.');
     } finally {
       setLoading(false);
