@@ -12,7 +12,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuth } from '../hooks/useAuth';
-import { ScheduleService } from '../services/schedule';
+import { ScheduleService } from '../services';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 type SessionSchedulingNavigationProp = NativeStackNavigationProp<

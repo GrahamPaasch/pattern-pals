@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
-import { NotificationService, LocalNotification } from '../services/notifications';
+import { NotificationService, LocalNotification } from '../services';
 
 export default function NotificationsScreen() {
   const { user } = useAuth();

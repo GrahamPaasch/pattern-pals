@@ -13,7 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { patterns } from '../data/patterns';
-import { ConnectionService } from '../services/connections';
+import { ConnectionService } from '../services';
 import { useAuth } from '../hooks/useAuth';
 
 interface MockMatch {

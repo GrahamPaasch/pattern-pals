@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PatternStatus, UserPattern } from '../types';
-import { UserPatternService } from '../services/userPatterns';
+import { UserPatternService } from '../services';
 import { useAuth } from './useAuth';
 
 export interface UseUserPatternsReturn {
