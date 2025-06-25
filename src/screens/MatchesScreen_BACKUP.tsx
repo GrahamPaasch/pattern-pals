@@ -201,7 +201,7 @@ export default function MatchesScreen({}: MatchesScreenProps) {
         </View>
 
         {item.bio && (
-          <Text style={styles.description} numberOfLines={2}>{item.bio}</Text>
+          <Text style={styles.matchDescription} numberOfLines={2}>{item.bio}</Text>
         )}
 
         <View style={styles.patternsSection}>
@@ -332,6 +332,10 @@ export default function MatchesScreen({}: MatchesScreenProps) {
       ]
     );
   };
+    if (score >= 90) return '#10b981';
+    if (score >= 75) return '#f59e0b';
+    return '#6b7280';
+  };
 
   const handleViewProfile = (match: MockMatch) => {
     console.log('Attempting to navigate to UserProfileView with data:', {
@@ -346,17 +350,36 @@ export default function MatchesScreen({}: MatchesScreenProps) {
       lastActive: match.lastActive,
     });
     
-    navigation.navigate('UserProfileView', {
-      userId: match.id,
-      name: match.name,
-      experience: match.experience,
-      score: match.score,
-      sharedPatterns: match.sharedPatterns,
-      canTeach: match.canTeach,
-      canLearn: match.canLearn,
-      distance: match.distance,
-      lastActive: match.lastActive,
-    });
+    // Test with alert first
+    Alert.alert(
+      'View Profile',
+      `Navigating to ${match.name}'s profile...`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Continue',
+          onPress: () => {
+            try {
+              navigation.navigate('UserProfileView', {
+                userId: match.id,
+                name: match.name,
+                experience: match.experience,
+                score: match.score,
+                sharedPatterns: match.sharedPatterns,
+                canTeach: match.canTeach,
+                canLearn: match.canLearn,
+                distance: match.distance,
+                lastActive: match.lastActive,
+              });
+              console.log('Navigation command sent successfully');
+            } catch (error) {
+              console.error('Navigation error:', error);
+              Alert.alert('Navigation Error', String(error));
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleConnect = async (match: MockMatch) => {
@@ -451,6 +474,19 @@ export default function MatchesScreen({}: MatchesScreenProps) {
         },
       ]
     );
+  };
+
+  const getExperienceColor = (experience: string) => {
+    switch (experience) {
+      case 'Beginner':
+        return '#10b981';
+      case 'Intermediate':
+        return '#f59e0b';
+      case 'Advanced':
+        return '#ef4444';
+      default:
+        return '#6b7280';
+    }
   };
 
   const renderMatchItem = ({ item }: { item: MockMatch }) => (
@@ -570,49 +606,6 @@ export default function MatchesScreen({}: MatchesScreenProps) {
     </View>
   );
 
-  const renderSearchTab = () => (
-    <View style={styles.searchContainer}>
-      <View style={styles.searchHeader}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search for jugglers by name..."
-          value={searchQuery}
-          onChangeText={handleSearch}
-          clearButtonMode="while-editing"
-        />
-        <Text style={styles.searchResultsText}>
-          {searching ? 'Searching...' : `${searchResults.length} juggler${searchResults.length !== 1 ? 's' : ''} found`}
-        </Text>
-      </View>
-      
-      {searchResults.length > 0 ? (
-        <FlatList
-          data={searchResults}
-          renderItem={renderSearchResultItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-        />
-      ) : !searching && searchQuery.trim() ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateIcon}>🔍</Text>
-          <Text style={styles.emptyStateTitle}>No Users Found</Text>
-          <Text style={styles.emptyStateText}>
-            No jugglers found matching "{searchQuery}". Try a different search term.
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateIcon}>👥</Text>
-          <Text style={styles.emptyStateTitle}>Search for Jugglers</Text>
-          <Text style={styles.emptyStateText}>
-            Enter a name above to search for specific jugglers you'd like to connect with.
-          </Text>
-        </View>
-      )}
-    </View>
-  );
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -623,14 +616,6 @@ export default function MatchesScreen({}: MatchesScreenProps) {
           >
             <Text style={[styles.tabText, selectedTab === 'matches' && styles.activeTabText]}>
               Matches
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, selectedTab === 'search' && styles.activeTab]}
-            onPress={() => setSelectedTab('search')}
-          >
-            <Text style={[styles.tabText, selectedTab === 'search' && styles.activeTabText]}>
-              Search
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -652,8 +637,6 @@ export default function MatchesScreen({}: MatchesScreenProps) {
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
         />
-      ) : selectedTab === 'search' ? (
-        renderSearchTab()
       ) : (
         connectionRequests.length > 0 ? (
           <FlatList
@@ -708,30 +691,6 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     color: '#6366f1',
-  },
-  searchContainer: {
-    flex: 1,
-  },
-  searchHeader: {
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  searchInput: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    marginBottom: 8,
-    backgroundColor: '#ffffff',
-  },
-  searchResultsText: {
-    fontSize: 14,
-    color: '#6b7280',
-    fontStyle: 'italic',
   },
   listContainer: {
     padding: 16,
@@ -794,12 +753,6 @@ const styles = StyleSheet.create({
   scoreLabel: {
     fontSize: 12,
     color: '#6b7280',
-  },
-  description: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 12,
-    lineHeight: 20,
   },
   patternsSection: {
     marginBottom: 16,
