@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,63 +6,40 @@ import {
   SafeAreaView,
   FlatList,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
-
-interface MockNotification {
-  id: string;
-  type: 'new_match' | 'session_reminder' | 'session_invite' | 'workshop_announcement';
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-}
-
-const mockNotifications: MockNotification[] = [
-  {
-    id: '1',
-    type: 'new_match',
-    title: 'New Match Found!',
-    message: 'Alex Chen is a 92% match with shared interest in club passing',
-    time: '2 hours ago',
-    read: false,
-  },
-  {
-    id: '2',
-    type: 'session_reminder',
-    title: 'Session Reminder',
-    message: 'Your practice session with Sarah starts in 30 minutes',
-    time: '4 hours ago',
-    read: false,
-  },
-  {
-    id: '3',
-    type: 'workshop_announcement',
-    title: 'Workshop Tomorrow',
-    message: 'Advanced Passing Patterns workshop at Central Park - 2 PM',
-    time: '1 day ago',
-    read: true,
-  },
-  {
-    id: '4',
-    type: 'session_invite',
-    title: 'Session Invitation',
-    message: 'Mike Rodriguez invited you to practice on Friday at 6 PM',
-    time: '2 days ago',
-    read: true,
-  },
-  {
-    id: '5',
-    type: 'new_match',
-    title: 'New Match Found!',
-    message: 'Emma Davis wants to learn patterns you know',
-    time: '3 days ago',
-    read: true,
-  },
-];
+import { useAuth } from '../hooks/useAuth';
+import { NotificationService, LocalNotification } from '../services/notifications';
 
 export default function NotificationsScreen() {
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState<LocalNotification[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [user]);
+
+  const loadNotifications = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const userNotifications = await NotificationService.getUserNotifications(user.id);
+      setNotifications(userNotifications);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadNotifications();
+    setRefreshing(false);
+  };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -79,20 +56,49 @@ export default function NotificationsScreen() {
     }
   };
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(notification =>
-        notification.id === id
-          ? { ...notification, read: true }
-          : notification
-      )
-    );
+  const formatTime = (date: Date) => {
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} minutes ago`;
+    } else if (diffInMinutes < 1440) { // 24 hours
+      const hours = Math.floor(diffInMinutes / 60);
+      return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    } else {
+      const days = Math.floor(diffInMinutes / 1440);
+      return `${days} day${days > 1 ? 's' : ''} ago`;
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev =>
-      prev.map(notification => ({ ...notification, read: true }))
-    );
+  const markAsRead = async (id: string) => {
+    if (!user?.id) return;
+    
+    try {
+      await NotificationService.markAsRead(user.id, id);
+      setNotifications(prev =>
+        prev.map(notification =>
+          notification.id === id
+            ? { ...notification, read: true }
+            : notification
+        )
+      );
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    if (!user?.id) return;
+    
+    try {
+      await NotificationService.markAllAsRead(user.id);
+      setNotifications(prev =>
+        prev.map(notification => ({ ...notification, read: true }))
+      );
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
   };
 
   const filteredNotifications = filter === 'unread'
@@ -101,7 +107,7 @@ export default function NotificationsScreen() {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const renderNotificationItem = ({ item }: { item: MockNotification }) => (
+  const renderNotificationItem = ({ item }: { item: LocalNotification }) => (
     <TouchableOpacity
       style={[
         styles.notificationCard,
@@ -124,7 +130,7 @@ export default function NotificationsScreen() {
             {item.message}
           </Text>
           <Text style={styles.notificationTime}>
-            {item.time}
+            {formatTime(item.createdAt)}
           </Text>
         </View>
         {!item.read && <View style={styles.unreadDot} />}
@@ -185,6 +191,13 @@ export default function NotificationsScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#6366f1"
+            />
+          }
         />
       ) : (
         <View style={styles.emptyState}>

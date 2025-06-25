@@ -8,14 +8,26 @@ import {
   TouchableOpacity,
   TextInput,
   FlatList,
+  Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { patterns, searchPatterns } from '../data/patterns';
 import { Pattern, PatternStatus } from '../types';
+import { useUserPatterns } from '../hooks/useUserPatterns';
 
 export default function PatternsScreen() {
+  const navigation = useNavigation<any>();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
   const [filteredPatterns, setFilteredPatterns] = useState<Pattern[]>(patterns);
+  
+  const { 
+    getPatternStatus, 
+    setPatternStatus, 
+    removePatternStatus, 
+    loading: patternsLoading,
+    error: patternsError 
+  } = useUserPatterns();
 
   const difficulties = ['All', 'Beginner', 'Intermediate', 'Advanced'];
 
@@ -43,7 +55,7 @@ export default function PatternsScreen() {
     setFilteredPatterns(filtered);
   };
 
-  const getStatusIcon = (status: PatternStatus) => {
+  const getStatusIcon = (status: PatternStatus | null) => {
     switch (status) {
       case 'known':
         return '✅';
@@ -53,6 +65,31 @@ export default function PatternsScreen() {
         return '❌';
       default:
         return '○';
+    }
+  };
+
+  const getStatusColor = (status: PatternStatus | null) => {
+    switch (status) {
+      case 'known':
+        return '#10b981';
+      case 'want_to_learn':
+        return '#3b82f6';
+      case 'want_to_avoid':
+        return '#ef4444';
+      default:
+        return '#6b7280';
+    }
+  };
+
+  const handlePatternAction = async (patternId: string, action: 'known' | 'want_to_learn' | 'remove') => {
+    try {
+      if (action === 'remove') {
+        await removePatternStatus(patternId);
+      } else {
+        await setPatternStatus(patternId, action);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update pattern status. Please try again.');
     }
   };
 
@@ -69,52 +106,102 @@ export default function PatternsScreen() {
     }
   };
 
-  const renderPatternItem = ({ item }: { item: Pattern }) => (
-    <TouchableOpacity style={styles.patternCard}>
-      <View style={styles.patternHeader}>
-        <Text style={styles.patternName}>{item.name}</Text>
-        <View style={styles.patternMeta}>
-          <View 
-            style={[
-              styles.difficultyBadge, 
-              { backgroundColor: getDifficultyColor(item.difficulty) }
-            ]}
-          >
-            <Text style={styles.difficultyText}>{item.difficulty}</Text>
+  const renderPatternItem = ({ item }: { item: Pattern }) => {
+    const currentStatus = getPatternStatus(item.id);
+    
+    return (
+      <TouchableOpacity style={styles.patternCard}>
+        <View style={styles.patternHeader}>
+          <Text style={styles.patternName}>{item.name}</Text>
+          <View style={styles.patternMeta}>
+            <View 
+              style={[
+                styles.difficultyBadge, 
+                { backgroundColor: getDifficultyColor(item.difficulty) }
+              ]}
+            >
+              <Text style={styles.difficultyText}>{item.difficulty}</Text>
+            </View>
+            <TouchableOpacity 
+              style={[styles.statusIcon, { backgroundColor: getStatusColor(currentStatus) }]}
+              onPress={() => {
+                if (currentStatus) {
+                  handlePatternAction(item.id, 'remove');
+                } else {
+                  handlePatternAction(item.id, 'known');
+                }
+              }}
+            >
+              <Text style={styles.statusIconText}>{getStatusIcon(currentStatus)}</Text>
+            </TouchableOpacity>
           </View>
-          <Text style={styles.statusIcon}>{getStatusIcon('known')}</Text>
         </View>
-      </View>
-      
-      <Text style={styles.patternDescription}>{item.description}</Text>
-      
-      <View style={styles.patternDetails}>
-        <Text style={styles.detailText}>
-          👥 {item.requiredJugglers} juggler{item.requiredJugglers > 1 ? 's' : ''}
-        </Text>
-        <Text style={styles.detailText}>
-          🤹 {item.props.join(', ')}
-        </Text>
-      </View>
+        
+        <Text style={styles.patternDescription}>{item.description}</Text>
+        
+        <View style={styles.patternDetails}>
+          <Text style={styles.detailText}>
+            👥 {item.requiredJugglers} juggler{item.requiredJugglers > 1 ? 's' : ''}
+          </Text>
+          <Text style={styles.detailText}>
+            🤹 {item.props.join(', ')}
+          </Text>
+          <Text style={styles.detailText}>
+            ⏱️ {item.timing.replace('_', ' ')}
+          </Text>
+          <Text style={styles.detailText}>
+            🎯 {item.numberOfProps} props
+          </Text>
+        </View>
 
-      <View style={styles.patternTags}>
-        {item.tags.slice(0, 3).map((tag, index) => (
-          <View key={index} style={styles.tag}>
-            <Text style={styles.tagText}>{tag}</Text>
-          </View>
-        ))}
-      </View>
+        <View style={styles.patternTags}>
+          {item.tags.slice(0, 3).map((tag, index) => (
+            <View key={index} style={styles.tag}>
+              <Text style={styles.tagText}>{tag}</Text>
+            </View>
+          ))}
+          {item.source.type === 'user_contributed' && (
+            <View style={[styles.tag, styles.userContributedTag]}>
+              <Text style={[styles.tagText, styles.userContributedText]}>
+                {item.communityRating ? `⭐${item.communityRating}` : 'New'}
+              </Text>
+            </View>
+          )}
+        </View>
 
-      <View style={styles.patternActions}>
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionButtonText}>Mark as Known</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionButtonText}>Want to Learn</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.patternActions}>
+          <TouchableOpacity 
+            style={[
+              styles.actionButton, 
+              currentStatus === 'known' && styles.actionButtonActive
+            ]}
+            onPress={() => handlePatternAction(item.id, currentStatus === 'known' ? 'remove' : 'known')}
+          >
+            <Text style={[
+              styles.actionButtonText,
+              currentStatus === 'known' && styles.actionButtonTextActive
+            ]}>
+              {currentStatus === 'known' ? '✅ Known' : 'Mark as Known'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[
+              styles.actionButton, 
+              currentStatus === 'want_to_learn' && styles.actionButtonActive
+            ]}
+            onPress={() => handlePatternAction(item.id, currentStatus === 'want_to_learn' ? 'remove' : 'want_to_learn')}
+          >
+            <Text style={[
+              styles.actionButtonText,
+              currentStatus === 'want_to_learn' && styles.actionButtonTextActive
+            ]}>
+              {currentStatus === 'want_to_learn' ? '📚 Learning' : 'Want to Learn'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -151,6 +238,13 @@ export default function PatternsScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+        
+        <TouchableOpacity 
+          style={styles.contributeButton}
+          onPress={() => navigation.navigate('PatternContribution')}
+        >
+          <Text style={styles.contributeButtonText}>+ Contribute Pattern</Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -160,6 +254,12 @@ export default function PatternsScreen() {
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
       />
+      
+      {patternsError && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{patternsError}</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -254,7 +354,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   statusIcon: {
-    fontSize: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  statusIconText: {
+    fontSize: 12,
+    color: '#ffffff',
+    fontWeight: 'bold',
   },
   patternDescription: {
     fontSize: 14,
@@ -298,9 +409,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 4,
   },
+  actionButtonActive: {
+    backgroundColor: '#6366f1',
+  },
   actionButtonText: {
     fontSize: 12,
     color: '#6b7280',
     fontWeight: '500',
+  },
+  actionButtonTextActive: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  userContributedTag: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+    borderWidth: 1,
+  },
+  userContributedText: {
+    color: '#92400e',
+    fontWeight: '600',
+  },
+  errorContainer: {
+    padding: 16,
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+    borderWidth: 1,
+    borderRadius: 8,
+    margin: 16,
+  },
+  errorText: {
+    color: '#dc2626',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  contributeButton: {
+    backgroundColor: '#6366f1',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  contributeButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

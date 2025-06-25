@@ -95,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       // For development, create a mock user
-      const mockUser = {
+      const newMockUser = {
         id: Math.random().toString(36).substr(2, 9),
         email,
         aud: 'authenticated',
@@ -106,9 +106,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Create mock profile
       const profile: User = {
-        id: mockUser.id,
+        id: newMockUser.id,
         name: userData.name!,
-        email: mockUser.email,
+        email: newMockUser.email,
         avatar: '',
         experience: userData.experience!,
         preferredProps: userData.preferredProps!,
@@ -121,10 +121,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
 
       // Store in AsyncStorage for persistence
-      await AsyncStorage.setItem('mock_user', JSON.stringify(mockUser));
+      await AsyncStorage.setItem('mock_user', JSON.stringify(newMockUser));
       await AsyncStorage.setItem('mock_profile', JSON.stringify(profile));
-
-      setUser(mockUser);
+      
+      setUser(newMockUser);
       setUserProfile(profile);
     } catch (error) {
       console.error('Error signing up:', error);
@@ -137,28 +137,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
-      // For development, try to get mock user from AsyncStorage
-      const storedUser = await AsyncStorage.getItem('mock_user');
-      const storedProfile = await AsyncStorage.getItem('mock_profile');
+      // For development, check if there's a stored mock user
+      const existingUser = await AsyncStorage.getItem('mock_user');
+      const existingProfile = await AsyncStorage.getItem('mock_profile');
       
-      if (storedUser && storedProfile) {
-        const mockUser = JSON.parse(storedUser);
-        const profile = JSON.parse(storedProfile);
+      if (existingUser && existingProfile) {
+        const userData = JSON.parse(existingUser);
+        const profileData = JSON.parse(existingProfile);
         
-        if (mockUser.email === email) {
-          setUser(mockUser);
+        if (userData.email === email) {
+          setUser(userData);
           setUserProfile({
-            ...profile,
-            createdAt: new Date(profile.createdAt),
-            updatedAt: new Date(profile.updatedAt),
+            ...profileData,
+            createdAt: new Date(profileData.createdAt),
+            updatedAt: new Date(profileData.updatedAt),
           });
           return;
         }
       }
-
-      // Create a demo user if no stored user found
-      const mockUser = {
-        id: 'demo-user-123',
+      
+      // If no stored user, create a demo user for this email
+      const demoUser = {
+        id: 'demo-' + Math.random().toString(36).substr(2, 9),
         email,
         aud: 'authenticated',
         created_at: new Date().toISOString(),
@@ -167,27 +167,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } as any;
 
       const demoProfile: User = {
-        id: mockUser.id,
-        name: 'Demo User',
-        email: mockUser.email,
+        id: demoUser.id,
+        name: email.split('@')[0],
+        email: demoUser.email,
         avatar: '',
         experience: 'Intermediate',
-        preferredProps: ['clubs', 'balls'],
+        preferredProps: ['clubs'],
         availability: [
           { day: 'monday', startTime: '18:00', endTime: '20:00' },
           { day: 'wednesday', startTime: '19:00', endTime: '21:00' },
         ],
-        knownPatterns: ['1', '2', '3'],
-        wantToLearnPatterns: ['4', '5'],
-        avoidPatterns: ['6'],
+        knownPatterns: ['1', '2'], // Pre-populate with some patterns
+        wantToLearnPatterns: ['3'],
+        avoidPatterns: [],
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      await AsyncStorage.setItem('mock_user', JSON.stringify(mockUser));
+      await AsyncStorage.setItem('mock_user', JSON.stringify(demoUser));
       await AsyncStorage.setItem('mock_profile', JSON.stringify(demoProfile));
-
-      setUser(mockUser);
+      
+      setUser(demoUser);
       setUserProfile(demoProfile);
     } catch (error) {
       console.error('Error signing in:', error);

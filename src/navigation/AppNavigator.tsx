@@ -18,6 +18,10 @@ import AvailabilityManagementScreen from '../screens/AvailabilityManagementScree
 import MatchesScreen from '../screens/MatchesScreen';
 import PatternsScreen from '../screens/PatternsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import SessionSchedulingScreen from '../screens/SessionSchedulingScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import HelpSupportScreen from '../screens/HelpSupportScreen';
+import PatternContributionScreen from '../screens/PatternContributionScreen';
 
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -30,6 +34,13 @@ export type RootStackParamList = {
   MainTabs: undefined;
   ProfileEdit: undefined;
   AvailabilityManagement: undefined;
+  SessionScheduling: {
+    partnerId?: string;
+    partnerName?: string;
+  };
+  Settings: undefined;
+  HelpSupport: undefined;
+  PatternContribution: undefined;
 };
 
 export type MainTabParamList = {
@@ -163,6 +174,66 @@ export default function AppNavigator() {
               options={{
                 headerShown: true,
                 title: 'Manage Availability',
+                headerStyle: {
+                  backgroundColor: '#6366f1',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <RootStack.Screen 
+              name="SessionScheduling" 
+              component={SessionSchedulingScreen}
+              options={{
+                headerShown: true,
+                title: 'Schedule Session',
+                headerStyle: {
+                  backgroundColor: '#6366f1',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <RootStack.Screen 
+              name="Settings" 
+              component={SettingsScreen}
+              options={{
+                headerShown: true,
+                title: 'Settings',
+                headerStyle: {
+                  backgroundColor: '#6366f1',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <RootStack.Screen 
+              name="HelpSupport" 
+              component={HelpSupportScreen}
+              options={{
+                headerShown: true,
+                title: 'Help & Support',
+                headerStyle: {
+                  backgroundColor: '#6366f1',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <RootStack.Screen 
+              name="PatternContribution" 
+              component={PatternContributionScreen}
+              options={{
+                headerShown: true,
+                title: 'Contribute Pattern',
                 headerStyle: {
                   backgroundColor: '#6366f1',
                 },

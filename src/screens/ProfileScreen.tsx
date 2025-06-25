@@ -130,13 +130,19 @@ export default function ProfileScreen() {
             <Text style={styles.menuItemChevron}>›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('HelpSupport')}
+          >
             <Text style={styles.menuItemIcon}>❓</Text>
             <Text style={styles.menuItemText}>Help & Support</Text>
             <Text style={styles.menuItemChevron}>›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('Settings')}
+          >
             <Text style={styles.menuItemIcon}>⚙️</Text>
             <Text style={styles.menuItemText}>Settings</Text>
             <Text style={styles.menuItemChevron}>›</Text>

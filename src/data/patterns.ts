@@ -1,119 +1,160 @@
 import { Pattern } from '../types';
 
 export const patterns: Pattern[] = [
+  // BASIC PASSING PATTERNS
   {
     id: '1',
-    name: '4-Count Right Handed Passing',
-    difficulty: 'Beginner',
-    requiredJugglers: 2,
-    props: ['clubs', 'balls', 'rings'],
-    description: 'Basic two-person club passing pattern. Pass every 4th throw.',
-    videoUrl: 'https://www.youtube.com/watch?v=xKSMu7aQYcw',
-    globalSiteSwap: '(6p,6p)(6,6)(6,6)(6,6)',
-    localSiteSwap: '966966',
-    globalHandOrder: '(AR, BR)(AL, BL)(AR, BR)(AL, BL)',
-    tags: ['basic', 'clubs', 'balls', 'rings', 'semi-synchronous']
-  },
-  {
-    id: '2',
-    name: '4-Count Left Handed Passing',
-    difficulty: 'Beginner',
-    requiredJugglers: 2,
-    props: ['clubs', 'balls', 'rings'],
-    description: 'Basic two-person club passing pattern. Pass every 4th throw.',
-    videoUrl: 'https://www.youtube.com/watch?v=hO2sR50QW5c',
-    globalSiteSwap: '(6p,6p)(6,6)(6,6)(6,6)',
-    localSiteSwap: '966966',
-    globalHandOrder: '(AL, BL)(AR, BR)(AL, BL)(AR, BR)',
-    tags: ['basic', 'clubs', 'balls', 'rings', 'semi-synchronous']
-  },
-  {
-    id: '3',
     name: '6 Count',
     difficulty: 'Beginner',
     requiredJugglers: 2,
     props: ['clubs'],
-    description: 'Pass every 6th throw, good for beginners to get comfortable',
-    videoUrl: 'https://www.youtube.com/watch?v=example3',
-    localSiteSwap: '966',
-    tags: ['basic', 'clubs', 'synchronous']
+    description: 'Pass every 6th throw, good for beginners to get comfortable with timing',
+    tags: ['basic', 'clubs', 'synchronous', 'beginner-friendly'],
+    
+    source: {
+      name: 'Classic Pattern',
+      type: 'official',
+      dateAdded: '2025-06-25',
+      verificationStatus: 'verified'
+    },
+    prerequisites: [],
+    timing: 'fully_sync',
+    numberOfProps: 6,
+    period: 6,
+    squeezes: 0,
+    isPublic: true,
+    
+    siteswap: {
+      local: {
+        'A': '6p66666',
+        'B': '6p66666'
+      },
+      global: '(6p,6p)(6,6)(6,6)(6,6)(6,6)(6,6)'
+    },
+    handOrder: '(AR, BR)(AL, BL)(AR, BR)(AL, BL)(AR, BR)(AL, BL)',
+    wordDescriptions: {
+      'A': ['pass', 'self', 'self', 'self', 'self', 'self'],
+      'B': ['pass', 'self', 'self', 'self', 'self', 'self']
+    },
+    isGroundState: true
   },
+  {
+    id: '2',
+    name: 'Walking Pass',
+    difficulty: 'Intermediate',
+    requiredJugglers: 2,
+    props: ['clubs'],
+    description: 'Passing while walking side by side',
+    tags: ['intermediate', 'clubs', 'walking', 'moving'],
+    
+    source: {
+      name: 'Traditional Pattern',
+      type: 'official',
+      dateAdded: '2025-06-25'
+    },
+    prerequisites: ['1'], // Should know 6 Count first
+    timing: 'semi_sync',
+    numberOfProps: 6,
+    period: 4,
+    squeezes: 0,
+    isPublic: true,
+    
+    siteswap: {
+      local: {
+        'A': '6p666',
+        'B': '6p666'
+      }
+    },
+    wordDescriptions: {
+      'A': ['pass', 'self', 'self', 'self'],
+      'B': ['pass', 'self', 'self', 'self']
+    },
+    isGroundState: false
+  },
+  // Example pattern from Passist (645)
+  {
+    id: '3',
+    name: '645',
+    difficulty: 'Intermediate',
+    requiredJugglers: 2,
+    props: ['clubs'],
+    description: '5 props, 3-beat period pattern with alternating passes',
+    tags: ['intermediate', 'clubs', 'async', 'passist'],
+    
+    source: {
+      name: 'Passist',
+      type: 'official',
+      url: 'https://passist.org/patterns/645',
+      dateAdded: '2025-06-25'
+    },
+    prerequisites: ['1'], // Should know 6 Count first
+    timing: 'fully_async',
+    numberOfProps: 5,
+    period: 3,
+    squeezes: 0,
+    isPublic: true,
+    orbits: {
+      '600': 2,
+      '045': 3
+    },
+    
+    siteswap: {
+      local: {
+        'A': '645',
+        'B': '456'
+      },
+      prechac: {
+        'A': '5X 4',
+        'B': '6 5||'
+      }
+    },
+    handOrder: 'Ar Br Al Bl',
+    wordDescriptions: {
+      'A': ['self', 'zap', 'flip'],
+      'B': ['flip', 'self', 'zap']
+    },
+    isGroundState: true
+  },
+  // Example user-contributed pattern
   {
     id: '4',
-    name: 'Chocolate Bar',
-    difficulty: 'Intermediate',
-    requiredJugglers: 2,
-    props: ['clubs'],
-    description: 'Alternating ultimates and selfs with double passes',
-    videoUrl: 'https://www.youtube.com/watch?v=example4',
-    localSiteSwap: '978',
-    tags: ['intermediate', 'clubs', 'synchronous', 'doubles']
-  },
-  {
-    id: '5',
-    name: 'French Three Count',
-    difficulty: 'Intermediate',
-    requiredJugglers: 2,
-    props: ['clubs'],
-    description: 'Three count pattern with crossing passes',
-    videoUrl: 'https://www.youtube.com/watch?v=example5',
-    localSiteSwap: '786',
-    tags: ['intermediate', 'clubs', 'synchronous', 'crossing']
-  },
-  {
-    id: '6',
-    name: 'Why Not',
+    name: 'Custom Double Spin',
     difficulty: 'Advanced',
     requiredJugglers: 2,
     props: ['clubs'],
-    description: 'Complex pattern with heffs, zips, and holds',
-    videoUrl: 'https://www.youtube.com/watch?v=example6',
-    localSiteSwap: '7782',
-    tags: ['advanced', 'clubs', 'synchronous', 'heff', 'zip', 'hold']
-  },
-  {
-    id: '7',
-    name: 'Feed',
-    difficulty: 'Intermediate',
-    requiredJugglers: 3,
-    props: ['clubs'],
-    description: 'One person feeds two others in ultimate timing',
-    videoUrl: 'https://www.youtube.com/watch?v=example7',
-    localSiteSwap: '966',
-    tags: ['intermediate', 'clubs', 'synchronous', 'three-person']
-  },
-  {
-    id: '8',
-    name: 'Ball Dropback Line',
-    difficulty: 'Beginner',
-    requiredJugglers: 4,
-    props: ['balls'],
-    description: 'Line of jugglers passing balls with dropback pattern',
-    videoUrl: 'https://www.youtube.com/watch?v=example8',
-    localSiteSwap: '5',
-    tags: ['beginner', 'balls', 'line', 'four-person']
-  },
-  {
-    id: '9',
-    name: 'Ring Cascade',
-    difficulty: 'Beginner',
-    requiredJugglers: 2,
-    props: ['rings'],
-    description: 'Simple ring passing in cascade timing',
-    videoUrl: 'https://www.youtube.com/watch?v=example9',
-    localSiteSwap: '792',
-    tags: ['beginner', 'rings', 'cascade']
-  },
-  {
-    id: '10',
-    name: 'Typewriter',
-    difficulty: 'Advanced',
-    requiredJugglers: 2,
-    props: ['clubs'],
-    description: 'Advanced pattern with manipulators and various club tricks',
-    videoUrl: 'https://www.youtube.com/watch?v=example10',
-    localSiteSwap: '96672',
-    tags: ['advanced', 'clubs', 'manipulators', 'tricks']
+    description: 'A user-created variation with double spins on the passes',
+    tags: ['advanced', 'clubs', 'spins', 'user-created'],
+    
+    source: {
+      name: 'User Submission',
+      type: 'user_contributed',
+      contributorId: 'user_123',
+      dateAdded: '2025-06-25',
+      verificationStatus: 'pending'
+    },
+    prerequisites: ['1', '3'], // Need 6 Count and 645
+    timing: 'fully_sync',
+    numberOfProps: 6,
+    period: 4,
+    squeezes: 1,
+    isPublic: true,
+    
+    createdBy: 'user_123',
+    communityRating: 4.2,
+    ratingCount: 15,
+    lastModified: '2025-06-25',
+    
+    siteswap: {
+      local: {
+        'A': '6p2p66',
+        'B': '6p2p66'
+      }
+    },
+    wordDescriptions: {
+      'A': ['double pass', 'double pass', 'self', 'self'],
+      'B': ['double pass', 'double pass', 'self', 'self']
+    },
+    isGroundState: true
   }
 ];
 
@@ -131,6 +172,10 @@ export const getPatternsByProps = (props: string[]): Pattern[] => {
   );
 };
 
+export const getPatternsByJugglerCount = (count: number): Pattern[] => {
+  return patterns.filter(pattern => pattern.requiredJugglers === count);
+};
+
 export const searchPatterns = (query: string): Pattern[] => {
   const lowercaseQuery = query.toLowerCase();
   return patterns.filter(pattern =>
@@ -138,4 +183,72 @@ export const searchPatterns = (query: string): Pattern[] => {
     pattern.description.toLowerCase().includes(lowercaseQuery) ||
     pattern.tags.some(tag => tag.toLowerCase().includes(lowercaseQuery))
   );
+};
+
+export const getPatternsByTag = (tag: string): Pattern[] => {
+  return patterns.filter(pattern => 
+    pattern.tags.some(patternTag => patternTag.toLowerCase() === tag.toLowerCase())
+  );
+};
+
+export const getPatternCountByDifficulty = () => {
+  const counts = { Beginner: 0, Intermediate: 0, Advanced: 0 };
+  patterns.forEach(pattern => {
+    counts[pattern.difficulty]++;
+  });
+  return counts;
+};
+
+export const getPatternsByTiming = (timing: string): Pattern[] => {
+  return patterns.filter(pattern => pattern.timing === timing);
+};
+
+export const getPatternsByPrerequisite = (prerequisiteId: string): Pattern[] => {
+  return patterns.filter(pattern => 
+    pattern.prerequisites.includes(prerequisiteId)
+  );
+};
+
+export const getPatternsWithoutPrerequisites = (): Pattern[] => {
+  return patterns.filter(pattern => pattern.prerequisites.length === 0);
+};
+
+export const getPatternsBySource = (sourceName: string): Pattern[] => {
+  return patterns.filter(pattern => 
+    pattern.source.name.toLowerCase().includes(sourceName.toLowerCase())
+  );
+};
+
+export const getPatternsByPropCount = (count: number): Pattern[] => {
+  return patterns.filter(pattern => pattern.numberOfProps === count);
+};
+
+export const getPatternsBySourceType = (sourceType: string): Pattern[] => {
+  return patterns.filter(pattern => pattern.source.type === sourceType);
+};
+
+export const getUserContributedPatterns = (): Pattern[] => {
+  return patterns.filter(pattern => pattern.source.type === 'user_contributed');
+};
+
+export const getPatternsByContributor = (contributorId: string): Pattern[] => {
+  return patterns.filter(pattern => 
+    pattern.source.contributorId === contributorId || pattern.createdBy === contributorId
+  );
+};
+
+export const getPendingPatterns = (): Pattern[] => {
+  return patterns.filter(pattern => 
+    pattern.source.verificationStatus === 'pending'
+  );
+};
+
+export const getHighRatedPatterns = (minRating: number = 4): Pattern[] => {
+  return patterns.filter(pattern => 
+    pattern.communityRating && pattern.communityRating >= minRating
+  );
+};
+
+export const getPublicPatterns = (): Pattern[] => {
+  return patterns.filter(pattern => pattern.isPublic !== false);
 };

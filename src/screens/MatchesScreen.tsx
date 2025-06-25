@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   FlatList,
 } from 'react-native';
+import { patterns } from '../data/patterns';
 
 interface MockMatch {
   id: string;
@@ -27,9 +28,9 @@ const mockMatches: MockMatch[] = [
     name: 'Alex Chen',
     experience: 'Intermediate',
     score: 92,
-    sharedPatterns: ['Ultimate', 'Every Others', '6 Count'],
-    canTeach: ['Chocolate Bar', 'French Three Count'],
-    canLearn: ['Why Not'],
+    sharedPatterns: ['6 Count', 'Walking Pass', '645'],
+    canTeach: ['Custom Double Spin'],
+    canLearn: ['Walking Pass'],
     distance: '2.3 km',
     lastActive: '2 hours ago',
   },
@@ -38,9 +39,9 @@ const mockMatches: MockMatch[] = [
     name: 'Sarah Johnson',
     experience: 'Advanced',
     score: 87,
-    sharedPatterns: ['Ultimate', 'Chocolate Bar'],
-    canTeach: ['Why Not', 'Typewriter'],
-    canLearn: ['Feed'],
+    sharedPatterns: ['6 Count', 'Custom Double Spin'],
+    canTeach: ['645', 'Walking Pass'],
+    canLearn: ['6 Count'],
     distance: '1.8 km',
     lastActive: '1 day ago',
   },
@@ -49,9 +50,9 @@ const mockMatches: MockMatch[] = [
     name: 'Mike Rodriguez',
     experience: 'Beginner',
     score: 78,
-    sharedPatterns: ['Ultimate', '6 Count'],
+    sharedPatterns: ['6 Count'],
     canTeach: [],
-    canLearn: ['Every Others', 'Chocolate Bar'],
+    canLearn: ['Walking Pass', '645'],
     distance: '3.1 km',
     lastActive: '3 hours ago',
   },
@@ -149,10 +150,22 @@ export default function MatchesScreen() {
       <View style={styles.matchFooter}>
         <Text style={styles.lastActive}>Active {item.lastActive}</Text>
         <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.secondaryButton}>
+          <TouchableOpacity 
+            style={styles.secondaryButton}
+            onPress={() => {
+              // TODO: Navigate to user profile view
+              console.log('View profile for:', item.name);
+            }}
+          >
             <Text style={styles.secondaryButtonText}>View Profile</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.primaryButton}>
+          <TouchableOpacity 
+            style={styles.primaryButton}
+            onPress={() => {
+              // TODO: Send connection request
+              console.log('Connect with:', item.name);
+            }}
+          >
             <Text style={styles.primaryButtonText}>Connect</Text>
           </TouchableOpacity>
         </View>

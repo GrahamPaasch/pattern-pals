@@ -4,8 +4,8 @@ import * as SecureStore from 'expo-secure-store';
 
 // Replace these with your actual Supabase project credentials
 // For now using placeholder values - the app will work with mock auth
-const SUPABASE_URL = 'https://demo.supabase.co';
-const SUPABASE_ANON_KEY = 'demo-key';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://demo.supabase.co';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'demo-key';
 
 // Custom storage implementation for React Native
 const ExpoSecureStoreAdapter = {
