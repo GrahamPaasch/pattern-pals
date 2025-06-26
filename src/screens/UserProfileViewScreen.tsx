@@ -136,8 +136,8 @@ export default function UserProfileViewScreen({ route, navigation }: UserProfile
             Patterns you both know that you could practice together
           </Text>
           <View style={styles.patternGrid}>
-            {sharedPatterns.map((pattern, index) => (
-              <View key={index} style={styles.patternCard}>
+            {sharedPatterns.map((pattern) => (
+              <View key={pattern} style={styles.patternCard}>
                 <Text style={styles.patternName}>{pattern}</Text>
               </View>
             ))}
@@ -152,8 +152,8 @@ export default function UserProfileViewScreen({ route, navigation }: UserProfile
               Patterns they know that you want to learn
             </Text>
             <View style={styles.patternGrid}>
-              {canTeach.map((pattern, index) => (
-                <View key={index} style={[styles.patternCard, styles.teachCard]}>
+              {canTeach.map((pattern) => (
+                <View key={pattern} style={[styles.patternCard, styles.teachCard]}>
                   <Text style={[styles.patternName, styles.teachText]}>{pattern}</Text>
                 </View>
               ))}
@@ -169,8 +169,8 @@ export default function UserProfileViewScreen({ route, navigation }: UserProfile
               Patterns you know that they want to learn
             </Text>
             <View style={styles.patternGrid}>
-              {canLearn.map((pattern, index) => (
-                <View key={index} style={[styles.patternCard, styles.learnCard]}>
+              {canLearn.map((pattern) => (
+                <View key={pattern} style={[styles.patternCard, styles.learnCard]}>
                   <Text style={[styles.patternName, styles.learnText]}>{pattern}</Text>
                 </View>
               ))}
