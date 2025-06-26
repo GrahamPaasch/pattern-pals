@@ -131,7 +131,31 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
   };
 
   const handleViewProfile = (profile: UserProfile) => {
-    navigation.navigate('ProfileView', { userId: profile.id, profile });
+    if (!userProfile) return;
+
+    const compatibility = getCompatibilityScore(profile);
+    
+    // Find shared patterns and teaching opportunities
+    const userKnown = new Set(userProfile.knownPatterns || []);
+    const userWantToLearn = new Set(userProfile.wantToLearnPatterns || []);
+    const targetKnown = new Set(profile.knownPatterns);
+    const targetWantToLearn = new Set(profile.wantToLearnPatterns);
+
+    const sharedPatterns = [...userKnown].filter(pattern => targetKnown.has(pattern));
+    const canTeach = [...targetKnown].filter(pattern => userWantToLearn.has(pattern));
+    const canLearn = [...userKnown].filter(pattern => targetWantToLearn.has(pattern));
+
+    navigation.navigate('UserProfileView', {
+      userId: profile.id,
+      name: profile.name,
+      experience: profile.experience,
+      score: compatibility,
+      sharedPatterns,
+      canTeach,
+      canLearn,
+      distance: profile.location || 'Location not set',
+      lastActive: profile.lastActive,
+    });
   };
 
   const getCompatibilityScore = (profile: UserProfile): number => {

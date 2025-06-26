@@ -83,13 +83,32 @@ export default function SessionSchedulingScreen({ navigation, route }: Props) {
       };
 
       // Save to schedule service
+      console.log('Saving session data:', sessionData);
       const success = await ScheduleService.addSession(user.id, sessionData);
+      console.log('Save result:', success);
 
       if (success) {
+        // Verify the session was saved by checking if it's in storage
+        const allSessions = await ScheduleService.getAllSessions(user.id);
+        console.log('All sessions after save:', allSessions.length, 'sessions');
+        
+        // Find the session we just created
+        const newSession = allSessions.find(s => 
+          s.scheduledTime.getTime() === scheduledDateTime.getTime() &&
+          s.location === location.trim()
+        );
+        console.log('Found newly created session:', !!newSession, newSession?.id);
+        
         Alert.alert(
           'Session Scheduled!',
           `Your practice session${partnerName.trim() ? ` with ${partnerName.trim()}` : ''} has been scheduled for ${sessionDate.toLocaleDateString()} at ${sessionTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`,
           [
+            { 
+              text: 'View Schedule', 
+              onPress: () => {
+                navigation.navigate('Schedule');
+              }
+            },
             { 
               text: 'OK', 
               onPress: () => navigation.goBack() 

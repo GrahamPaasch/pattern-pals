@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Calendar, DateData } from 'react-native-calendars';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuth } from '../hooks/useAuth';
@@ -43,6 +43,15 @@ export default function ScheduleScreen() {
     // Update marked dates when sessions change
     updateMarkedDates();
   }, [sessions]);
+
+  // Reload sessions when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) {
+        loadSessions();
+      }
+    }, [user, selectedFilter])
+  );
 
   const updateMarkedDates = () => {
     const marked: {[key: string]: any} = {};
@@ -81,6 +90,7 @@ export default function ScheduleScreen() {
     if (!user?.id) return;
     
     try {
+      console.log('ScheduleScreen.loadSessions - userId:', user.id, 'filter:', selectedFilter);
       let userSessions: ScheduledSession[] = [];
       
       switch (selectedFilter) {
@@ -94,6 +104,7 @@ export default function ScheduleScreen() {
           userSessions = await ScheduleService.getAllSessions(user.id);
       }
       
+      console.log('ScheduleScreen.loadSessions - loaded sessions:', userSessions);
       setSessions(userSessions);
     } catch (error) {
       console.error('Error loading sessions:', error);

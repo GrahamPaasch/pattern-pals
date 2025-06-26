@@ -24,20 +24,32 @@ export class ScheduleService {
   static async getAllSessions(userId: string): Promise<ScheduledSession[]> {
     try {
       const key = `${this.STORAGE_KEY}_${userId}`;
+      console.log('getAllSessions - loading from key:', key);
       const storedData = await AsyncStorage.getItem(key);
+      console.log('getAllSessions - raw stored data:', storedData);
+      
+      // Get demo sessions first
+      const demoSessions = this.getDemoSessions(userId);
       
       if (storedData) {
-        const sessions = JSON.parse(storedData);
-        return sessions.map((item: any) => ({
+        const userSessions = JSON.parse(storedData);
+        console.log('getAllSessions - parsed user sessions:', userSessions.length, 'sessions found');
+        const mappedUserSessions = userSessions.map((item: any) => ({
           ...item,
           scheduledTime: new Date(item.scheduledTime),
           createdAt: new Date(item.createdAt),
           updatedAt: new Date(item.updatedAt)
         }));
+        
+        // Combine demo sessions with user sessions
+        const allSessions = [...demoSessions, ...mappedUserSessions];
+        console.log('getAllSessions - returning', allSessions.length, 'total sessions (demo + user)');
+        return allSessions;
       }
 
-      // Return some demo sessions for testing
-      return this.getDemoSessions(userId);
+      // Return demo sessions if no user data
+      console.log('getAllSessions - no stored data, returning demo sessions');
+      return demoSessions;
     } catch (error) {
       console.error('Error in getAllSessions:', error);
       return this.getDemoSessions(userId);
@@ -76,7 +88,9 @@ export class ScheduleService {
     session: Omit<ScheduledSession, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<boolean> {
     try {
+      console.log('ScheduleService.addSession called with:', { userId, session });
       const existingSessions = await this.getAllSessions(userId);
+      console.log('Existing sessions before add:', existingSessions);
       
       const newSession: ScheduledSession = {
         ...session,
@@ -84,11 +98,15 @@ export class ScheduleService {
         createdAt: new Date(),
         updatedAt: new Date()
       };
+      console.log('New session to add:', newSession);
 
       const updatedSessions = [...existingSessions, newSession];
+      console.log('Updated sessions array:', updatedSessions);
       
       const key = `${this.STORAGE_KEY}_${userId}`;
+      console.log('Storage key:', key);
       await AsyncStorage.setItem(key, JSON.stringify(updatedSessions));
+      console.log('Successfully saved to AsyncStorage');
       
       return true;
     } catch (error) {
