@@ -58,8 +58,8 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Preferred Props</Text>
           <View style={styles.propsList}>
-            {userProfile?.preferredProps.map((prop, index) => (
-              <View key={index} style={styles.propTag}>
+            {userProfile?.preferredProps.map((prop) => (
+              <View key={prop} style={styles.propTag}>
                 <Text style={styles.propText}>
                   {prop.charAt(0).toUpperCase() + prop.slice(1)}
                 </Text>
@@ -90,8 +90,11 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Availability</Text>
           {userProfile?.availability && userProfile.availability.length > 0 ? (
             <View style={styles.availabilityList}>
-              {userProfile.availability.map((slot, index) => (
-                <View key={index} style={styles.availabilityItem}>
+              {userProfile.availability.map((slot) => (
+                <View
+                  key={`${slot.day}-${slot.startTime}-${slot.endTime}`}
+                  style={styles.availabilityItem}
+                >
                   <Text style={styles.dayText}>
                     {slot.day.charAt(0).toUpperCase() + slot.day.slice(1)}
                   </Text>

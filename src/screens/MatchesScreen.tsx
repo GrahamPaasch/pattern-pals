@@ -245,8 +245,8 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
         </Text>
         
         <View style={styles.matchPatterns}>
-          {(item.knownPatterns || []).slice(0, 3).map((pattern: string, index: number) => (
-            <View key={index} style={styles.patternTag}>
+          {(item.knownPatterns || []).slice(0, 3).map((pattern: string) => (
+            <View key={pattern} style={styles.patternTag}>
               <Text style={styles.patternText}>{pattern}</Text>
             </View>
           ))}
@@ -301,8 +301,8 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
         </Text>
         
         <View style={styles.searchResultPatterns}>
-          {(item.knownPatterns || []).slice(0, 2).map((pattern: string, index: number) => (
-            <View key={index} style={styles.patternTagSmall}>
+          {(item.knownPatterns || []).slice(0, 2).map((pattern: string) => (
+            <View key={pattern} style={styles.patternTagSmall}>
               <Text style={styles.patternTextSmall}>{pattern}</Text>
             </View>
           ))}
