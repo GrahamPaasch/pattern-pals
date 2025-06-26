@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,9 @@ import {
   FlatList,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { patterns, searchPatterns } from '../data/patterns';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { patterns } from '../data/patterns';
+import { PatternLibraryService } from '../services';
 import { Pattern, PatternStatus } from '../types';
 import { useUserPatterns } from '../hooks/useUserPatterns';
 
@@ -19,17 +20,30 @@ export default function PatternsScreen() {
   const navigation = useNavigation<any>();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('All');
+  const [allPatterns, setAllPatterns] = useState<Pattern[]>(patterns);
   const [filteredPatterns, setFilteredPatterns] = useState<Pattern[]>(patterns);
   
-  const { 
-    getPatternStatus, 
-    setPatternStatus, 
-    removePatternStatus, 
+  const {
+    getPatternStatus,
+    setPatternStatus,
+    removePatternStatus,
     loading: patternsLoading,
-    error: patternsError 
+    error: patternsError
   } = useUserPatterns();
 
   const difficulties = ['All', 'Beginner', 'Intermediate', 'Advanced'];
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadCustom = async () => {
+        const custom = await PatternLibraryService.getUserContributedPatterns();
+        const combined = [...patterns, ...custom];
+        setAllPatterns(combined);
+        filterPatterns(searchQuery, selectedDifficulty, combined);
+      };
+      loadCustom();
+    }, [searchQuery, selectedDifficulty])
+  );
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -41,11 +55,20 @@ export default function PatternsScreen() {
     filterPatterns(searchQuery, difficulty);
   };
 
-  const filterPatterns = (query: string, difficulty: string) => {
-    let filtered = patterns;
+  const filterPatterns = (
+    query: string,
+    difficulty: string,
+    base: Pattern[] = allPatterns
+  ) => {
+    let filtered = base;
 
     if (query.trim()) {
-      filtered = searchPatterns(query);
+      const q = query.toLowerCase();
+      filtered = allPatterns.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q) ||
+        p.tags.some(t => t.toLowerCase().includes(q))
+      );
     }
 
     if (difficulty !== 'All') {

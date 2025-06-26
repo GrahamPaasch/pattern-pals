@@ -5,3 +5,4 @@ export { ConnectionService } from './connections';
 export { UserPatternService } from './userPatterns';
 export { UserSearchService, UserProfile } from './userSearch';
 export { supabase } from './supabase';
+export { PatternLibraryService } from './patternLibrary';

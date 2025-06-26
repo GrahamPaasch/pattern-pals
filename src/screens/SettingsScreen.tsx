@@ -9,6 +9,9 @@ import {
   Switch,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../hooks/useAuth';
+import { NotificationService, ConnectionService, ScheduleService, UserPatternService, PatternLibraryService } from '../services';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -22,6 +25,7 @@ interface Props {
 }
 
 export default function SettingsScreen({ navigation }: Props) {
+  const { user, signOut } = useAuth();
   const [pushNotifications, setPushNotifications] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [matchNotifications, setMatchNotifications] = useState(true);
@@ -52,6 +56,22 @@ export default function SettingsScreen({ navigation }: Props) {
     }
   };
 
+  const clearData = async () => {
+    try {
+      if (user?.id) {
+        await NotificationService.clearAllNotifications(user.id);
+        await ScheduleService.clearAllSessions(user.id);
+        await UserPatternService.clearUserPatterns(user.id);
+      }
+      await ConnectionService.clearAllConnectionData();
+      await PatternLibraryService.clearUserPatterns();
+      await AsyncStorage.clear();
+    } catch (err) {
+      console.log('Clear data error:', err);
+      throw err;
+    }
+  };
+
   const handleClearData = () => {
     Alert.alert(
       'Clear App Data',
@@ -61,9 +81,13 @@ export default function SettingsScreen({ navigation }: Props) {
         {
           text: 'Clear Data',
           style: 'destructive',
-          onPress: () => {
-            // TODO: Implement data clearing
-            Alert.alert('Success', 'App data cleared successfully');
+          onPress: async () => {
+            try {
+              await clearData();
+              Alert.alert('Success', 'App data cleared successfully');
+            } catch {
+              Alert.alert('Error', 'Failed to clear data');
+            }
           },
         },
       ]
@@ -79,7 +103,7 @@ export default function SettingsScreen({ navigation }: Props) {
         {
           text: 'Delete Account',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
             Alert.alert(
               'Confirm Deletion',
               'Please type "DELETE" to confirm account deletion',
@@ -88,9 +112,13 @@ export default function SettingsScreen({ navigation }: Props) {
                 {
                   text: 'Delete',
                   style: 'destructive',
-                  onPress: () => {
-                    // TODO: Implement account deletion
-                    console.log('Account deletion requested');
+                  onPress: async () => {
+                    try {
+                      await clearData();
+                      await signOut();
+                    } catch (err) {
+                      console.log('Account deletion error:', err);
+                    }
                   },
                 },
               ]

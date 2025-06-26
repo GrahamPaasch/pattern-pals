@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { Pattern } from '../types';
+import { PatternLibraryService } from '../services';
 
 type PatternContributionNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -55,16 +57,43 @@ export default function PatternContributionScreen({ navigation }: Props) {
 
     setLoading(true);
     try {
-      // TODO: Implement pattern submission to backend
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API call
-      
+      const newPattern: Pattern = {
+        id: `user_${Date.now()}`,
+        name,
+        difficulty: difficulty as any,
+        requiredJugglers: parseInt(requiredJugglers, 10) || 2,
+        props: selectedProps as any,
+        description,
+        tags: [],
+        source: {
+          name: 'User Submission',
+          type: 'user_contributed',
+          contributorId: 'local',
+          dateAdded: new Date().toISOString(),
+          verificationStatus: 'pending'
+        },
+        prerequisites: [],
+        timing: 'fully_async',
+        createdBy: 'local',
+        communityRating: undefined,
+        ratingCount: undefined,
+        isPublic: true,
+        lastModified: new Date().toISOString(),
+        numberOfProps: selectedProps.length,
+        period: 4,
+        siteswap: {},
+        wordDescriptions: {},
+      } as any;
+
+      await PatternLibraryService.addUserPattern(newPattern);
+
       Alert.alert(
         'Pattern Submitted!',
-        'Thank you for contributing to the pattern library. Your pattern will be reviewed by our community moderators and added to the library once approved.',
+        'Thank you for contributing to the pattern library. Your pattern has been saved locally.',
         [
-          { 
-            text: 'Great!', 
-            onPress: () => navigation.goBack() 
+          {
+            text: 'Great!',
+            onPress: () => navigation.goBack()
           }
         ]
       );

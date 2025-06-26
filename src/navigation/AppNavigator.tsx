@@ -21,6 +21,7 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import SessionSchedulingScreen from '../screens/SessionSchedulingScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import HelpSupportScreen from '../screens/HelpSupportScreen';
+import SupportChatScreen from '../screens/SupportChatScreen';
 import PatternContributionScreen from '../screens/PatternContributionScreen';
 import UserProfileViewScreen from '../screens/UserProfileViewScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
@@ -43,6 +44,7 @@ export type RootStackParamList = {
   };
   Settings: undefined;
   HelpSupport: undefined;
+  SupportChat: undefined;
   PatternContribution: undefined;
   Schedule: undefined;
   UserProfileView: {
@@ -228,8 +230,8 @@ export default function AppNavigator() {
                 },
               }}
             />
-            <RootStack.Screen 
-              name="HelpSupport" 
+            <RootStack.Screen
+              name="HelpSupport"
               component={HelpSupportScreen}
               options={{
                 headerShown: true,
@@ -243,8 +245,23 @@ export default function AppNavigator() {
                 },
               }}
             />
-            <RootStack.Screen 
-              name="PatternContribution" 
+            <RootStack.Screen
+              name="SupportChat"
+              component={SupportChatScreen}
+              options={{
+                headerShown: true,
+                title: 'Support Chat',
+                headerStyle: {
+                  backgroundColor: '#6366f1',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <RootStack.Screen
+              name="PatternContribution"
               component={PatternContributionScreen}
               options={{
                 headerShown: true,

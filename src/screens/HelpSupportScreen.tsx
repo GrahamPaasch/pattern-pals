@@ -64,10 +64,7 @@ export default function HelpSupportScreen({ navigation }: Props) {
         },
         {
           text: 'In-App Chat',
-          onPress: () => {
-            // TODO: Implement in-app chat
-            Alert.alert('Coming Soon', 'In-app chat will be available soon!');
-          },
+          onPress: () => navigation.navigate('SupportChat'),
         },
       ]
     );
@@ -81,10 +78,7 @@ export default function HelpSupportScreen({ navigation }: Props) {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Rate on App Store',
-          onPress: () => {
-            // TODO: Add actual app store link
-            Alert.alert('Thank you!', 'App Store rating coming soon!');
-          },
+          onPress: () => Linking.openURL('https://example.com/app-store-patternpals'),
         },
         {
           text: 'Send Email',
