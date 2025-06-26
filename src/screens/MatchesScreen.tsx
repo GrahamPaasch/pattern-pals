@@ -3,615 +3,355 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
-  ScrollView,
   TouchableOpacity,
   FlatList,
-  Alert,
+  SafeAreaView,
   TextInput,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { patterns } from '../data/patterns';
-import { ConnectionService, UserSearchService, UserProfile } from '../services';
+import { User } from '../types';
 import { useAuth } from '../hooks/useAuth';
-
-interface MockMatch {
-  id: string;
-  name: string;
-  experience: string;
-  score: number;
-  sharedPatterns: string[];
-  canTeach: string[];
-  canLearn: string[];
-  distance: string;
-  lastActive: string;
-}
-
-const mockMatches: MockMatch[] = [
-  {
-    id: '1',
-    name: 'Alex Chen',
-    experience: 'Intermediate',
-    score: 92,
-    sharedPatterns: ['6 Count', 'Walking Pass', '645'],
-    canTeach: ['Custom Double Spin'],
-    canLearn: ['Walking Pass'],
-    distance: '2.3 km',
-    lastActive: '2 hours ago',
-  },
-  {
-    id: '2',
-    name: 'Sarah Johnson',
-    experience: 'Advanced',
-    score: 87,
-    sharedPatterns: ['6 Count', 'Custom Double Spin'],
-    canTeach: ['645', 'Walking Pass'],
-    canLearn: ['6 Count'],
-    distance: '1.8 km',
-    lastActive: '1 day ago',
-  },
-  {
-    id: '3',
-    name: 'Mike Rodriguez',
-    experience: 'Beginner',
-    score: 78,
-    sharedPatterns: ['6 Count'],
-    canTeach: [],
-    canLearn: ['Walking Pass', '645'],
-    distance: '3.1 km',
-    lastActive: '3 hours ago',
-  },
-];
-
-type MatchesScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+import { UserSearchService, UserProfile } from '../services/userSearch';
+import { ConnectionService } from '../services/connections';
 
 interface MatchesScreenProps {
-  // Using the navigation hook instead of prop for better stack access
+  navigation: any;
 }
 
-export default function MatchesScreen({}: MatchesScreenProps) {
-  const navigation = useNavigation<MatchesScreenNavigationProp>();
+interface ConnectionRequest {
+  id: string;
+  fromUser: UserProfile;
+  message?: string;
+  createdAt: string;
+}
+
+export default function MatchesScreen({ navigation }: MatchesScreenProps) {
   const { user, userProfile } = useAuth();
   const [selectedTab, setSelectedTab] = useState<'matches' | 'search' | 'requests'>('matches');
-  const [connectionRequests, setConnectionRequests] = useState<any[]>([]);
-  const [connectedUserIds, setConnectedUserIds] = useState<Set<string>>(new Set());
-  
-  // Search state
+  const [matches, setMatches] = useState<UserProfile[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
-  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [searching, setSearching] = useState(false);
+  const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadConnectionData();
-    loadAllUsers();
+    loadMatches();
+    loadConnectionRequests();
   }, [user]);
 
-  useEffect(() => {
-    handleSearch(searchQuery);
-  }, [allUsers]);
-
-  const loadAllUsers = async () => {
+  const loadMatches = async () => {
     if (!user) return;
     
     try {
-      const users = await UserSearchService.getAllUsers(user.id);
-      setAllUsers(users);
-      setSearchResults(users); // Show all users initially
+      setLoading(true);
+      // Mock matches data - in a real app, this would fetch from your backend
+      const mockMatches: UserProfile[] = [
+        {
+          id: '2',
+          email: 'alice@example.com',
+          name: 'Alice Cooper',
+          experience: 'Intermediate',
+          preferredProps: ['clubs', 'balls'],
+          location: 'Downtown',
+          lastActive: '1 hour ago',
+          bio: 'Love practicing in the park! Always up for learning new tricks.',
+          knownPatterns: ['3-ball cascade', '4-ball fountain', 'mills mess'],
+          wantToLearnPatterns: ['passing patterns', '5-ball cascade'],
+        },
+        {
+          id: '3',
+          email: 'bob@example.com',
+          name: 'Bob Wilson',
+          experience: 'Advanced',
+          preferredProps: ['clubs'],
+          location: 'City Center',
+          lastActive: '30 minutes ago',
+          bio: 'Professional performer seeking practice partners for advanced patterns.',
+          knownPatterns: ['5-ball cascade', 'passing patterns', 'club juggling'],
+          wantToLearnPatterns: ['7-ball cascade', 'takeout doubles'],
+        },
+      ];
+      setMatches(mockMatches);
     } catch (error) {
-      console.error('Error loading users:', error);
+      console.error('Error loading matches:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadConnectionRequests = async () => {
+    if (!user) return;
+    
+    try {
+      // Mock requests data - in a real app, this would fetch from your backend
+      const mockRequests: ConnectionRequest[] = [];
+      setConnectionRequests(mockRequests);
+    } catch (error) {
+      console.error('Error loading connection requests:', error);
     }
   };
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
     
-    if (!user) return;
-    
-    setSearching(true);
+    if (query.trim() === '') {
+      setSearchResults([]);
+      return;
+    }
+
+    if (!user) {
+      Alert.alert('Error', 'Please log in to search for users.');
+      return;
+    }
+
     try {
+      setSearching(true);
       const results = await UserSearchService.searchUsersByName(query, user.id);
       setSearchResults(results);
     } catch (error) {
       console.error('Error searching users:', error);
+      Alert.alert('Error', 'Failed to search users. Please try again.');
     } finally {
       setSearching(false);
     }
   };
 
-  const loadConnectionData = async () => {
-    if (!user) return;
+  const handleConnect = async (targetUser: UserProfile) => {
+    if (!user || !userProfile) return;
 
-    // Load connection requests for this user
-    const requests = await ConnectionService.getConnectionRequestsForUser(user.id);
-    setConnectionRequests(requests);
-
-    // Load existing connections to know which users we're already connected to
-    const connections = await ConnectionService.getConnectionsForUser(user.id);
-    const connectedIds = new Set(
-      connections.map(conn => 
-        conn.userId1 === user.id ? conn.userId2 : conn.userId1
-      )
-    );
-    setConnectedUserIds(connectedIds);
+    try {
+      await ConnectionService.sendConnectionRequest(user.id, targetUser.id, userProfile.name, targetUser.name);
+      Alert.alert('Success', `Connection request sent to ${targetUser.name}!`);
+    } catch (error) {
+      console.error('Error sending connection request:', error);
+      Alert.alert('Error', 'Failed to send connection request. Please try again.');
+    }
   };
 
-  const getScoreColor = (score: number) => {
+  const handleViewProfile = (profile: UserProfile) => {
+    navigation.navigate('ProfileView', { userId: profile.id, profile });
+  };
+
+  const getCompatibilityScore = (profile: UserProfile): number => {
+    if (!userProfile) return 0;
+    
+    let score = 0;
+    
+    // Experience level compatibility
+    const experienceLevels = ['Beginner', 'Intermediate', 'Advanced'];
+    const userExpIndex = experienceLevels.indexOf(userProfile.experience);
+    const profileExpIndex = experienceLevels.indexOf(profile.experience);
+    const expDiff = Math.abs(userExpIndex - profileExpIndex);
+    score += Math.max(0, 40 - (expDiff * 15));
+    
+    // Pattern compatibility
+    const userPatterns = userProfile.knownPatterns || [];
+    const profilePatterns = profile.knownPatterns || [];
+    const commonPatterns = userPatterns.filter((pattern: string) => 
+      profilePatterns.includes(pattern)
+    );
+    score += Math.min(30, commonPatterns.length * 10);
+    
+    // Teaching opportunities
+    const canTeach = userPatterns.filter((pattern: string) => 
+      profile.wantToLearnPatterns.includes(pattern)
+    );
+    const canLearn = profilePatterns.filter((pattern: string) => 
+      userProfile.wantToLearnPatterns.includes(pattern)
+    );
+    score += Math.min(20, (canTeach.length + canLearn.length) * 5);
+    
+    // Location compatibility (simplified)
+    if (userProfile.name && profile.location) { // Simple location check
+      score += 10;
+    }
+    
+    return Math.min(100, score);
+  };
+
+  const getScoreColor = (score: number): string => {
     if (score >= 90) return '#10b981';
     if (score >= 75) return '#f59e0b';
     return '#6b7280';
   };
 
-  const getExperienceColor = (experience: string) => {
-    switch (experience) {
-      case 'Beginner':
-        return '#10b981';
-      case 'Intermediate':
-        return '#f59e0b';
-      case 'Advanced':
-        return '#ef4444';
-      default:
-        return '#6b7280';
+  const getScoreLabel = (score: number): string => {
+    if (score >= 90) {
+      return 'Excellent Match';
+    } else if (score >= 75) {
+      return 'Good Match';
+    } else if (score >= 50) {
+      return 'Fair Match';
+    } else {
+      return 'Limited Match';
     }
   };
 
-  const renderSearchResultItem = ({ item }: { item: UserProfile }) => {
-    const compatibility = userProfile ? 
-      UserSearchService.calculateCompatibilityScore(
-        {
-          id: userProfile.id,
-          name: userProfile.name,
-          email: userProfile.email,
-          experience: userProfile.experience,
-          preferredProps: userProfile.preferredProps.map(prop => prop),
-          lastActive: 'online',
-          knownPatterns: userProfile.knownPatterns || [],
-          wantToLearnPatterns: userProfile.wantToLearnPatterns || []
-        },
-        item
-      ) : 0;
-
+  const renderMatchItem = ({ item }: { item: UserProfile }) => {
+    const compatibilityScore = getCompatibilityScore(item);
+    
     return (
-      <TouchableOpacity style={styles.matchCard}>
+      <TouchableOpacity
+        style={styles.matchCard}
+        onPress={() => handleViewProfile(item)}
+      >
         <View style={styles.matchHeader}>
           <View style={styles.matchInfo}>
             <Text style={styles.matchName}>{item.name}</Text>
-            <View style={styles.matchMeta}>
-              <View 
-                style={[
-                  styles.experienceBadge, 
-                  { backgroundColor: getExperienceColor(item.experience) }
-                ]}
-              >
-                <Text style={styles.experienceText}>{item.experience}</Text>
-              </View>
-              {item.location && (
-                <Text style={styles.distance}>{item.location}</Text>
-              )}
-            </View>
+            <Text style={styles.matchLocation}>{item.location}</Text>
           </View>
-          <View style={styles.scoreContainer}>
-            <Text style={[styles.score, { color: getScoreColor(compatibility) }]}>
-              {compatibility}%
+          <View style={styles.compatibilityBadge}>
+            <Text style={[styles.compatibilityScore, { color: getScoreColor(compatibilityScore) }]}>
+              {compatibilityScore}%
             </Text>
-            <Text style={styles.scoreLabel}>Match</Text>
+            <Text style={styles.compatibilityLabel}>
+              {getScoreLabel(compatibilityScore)}
+            </Text>
           </View>
         </View>
-
-        {item.bio && (
-          <Text style={styles.description} numberOfLines={2}>{item.bio}</Text>
-        )}
-
-        <View style={styles.patternsSection}>
-          <View style={styles.patternGroup}>
-            <Text style={styles.patternGroupTitle}>Known Patterns ({item.knownPatterns.length})</Text>
-            <View style={styles.patternList}>
-              {item.knownPatterns.slice(0, 3).map((pattern: string, index: number) => (
-                <View key={index} style={styles.patternTag}>
-                  <Text style={styles.patternTagText}>{pattern}</Text>
-                </View>
-              ))}
-              {item.knownPatterns.length > 3 && (
-                <Text style={styles.moreText}>+{item.knownPatterns.length - 3} more</Text>
-              )}
+        
+        <Text style={styles.matchSkill}>
+          {item.experience} level
+        </Text>
+        
+        <Text style={styles.matchBio} numberOfLines={2}>
+          {item.bio}
+        </Text>
+        
+        <View style={styles.matchPatterns}>
+          {(item.knownPatterns || []).slice(0, 3).map((pattern: string, index: number) => (
+            <View key={index} style={styles.patternTag}>
+              <Text style={styles.patternText}>{pattern}</Text>
             </View>
+          ))}
+          {(item.knownPatterns || []).length > 3 && (
+            <Text style={styles.morePatterns}>+{(item.knownPatterns || []).length - 3} more</Text>
+          )}
+        </View>
+        
+        <TouchableOpacity
+          style={styles.connectButton}
+          onPress={() => handleConnect(item)}
+        >
+          <Text style={styles.connectButtonText}>Connect</Text>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderSearchResultItem = ({ item }: { item: UserProfile }) => {
+    const compatibilityScore = getCompatibilityScore(item);
+    
+    return (
+      <TouchableOpacity
+        style={styles.searchResultCard}
+        onPress={() => handleViewProfile(item)}
+      >
+        <View style={styles.searchResultHeader}>
+          <View style={styles.searchResultInfo}>
+            <Text style={styles.searchResultName}>{item.name}</Text>
+            <Text style={styles.searchResultLocation}>{item.location}</Text>
+            <Text style={styles.searchResultSkill}>
+              {item.experience} level
+            </Text>
+          </View>
+          <View style={styles.searchResultActions}>
+            <View style={styles.compatibilityBadgeSmall}>
+              <Text style={[styles.compatibilityScoreSmall, { color: getScoreColor(compatibilityScore) }]}>
+                {compatibilityScore}%
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.connectButtonSmall}
+              onPress={() => handleConnect(item)}
+            >
+              <Text style={styles.connectButtonSmallText}>Connect</Text>
+            </TouchableOpacity>
           </View>
         </View>
-
-        <View style={styles.matchFooter}>
-          <Text style={styles.lastActive}>Active {item.lastActive}</Text>
-          <View style={styles.actionButtons}>
-            <TouchableOpacity 
-              style={styles.secondaryButton}
-              onPress={() => handleViewUserProfile(item)}
-            >
-              <Text style={styles.secondaryButtonText}>View Profile</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.primaryButton}
-              onPress={() => handleConnectWithUser(item)}
-            >
-              <Text style={styles.primaryButtonText}>Connect</Text>
-            </TouchableOpacity>
-          </View>
+        
+        <Text style={styles.searchResultBio} numberOfLines={2}>
+          {item.bio}
+        </Text>
+        
+        <View style={styles.searchResultPatterns}>
+          {(item.knownPatterns || []).slice(0, 2).map((pattern: string, index: number) => (
+            <View key={index} style={styles.patternTagSmall}>
+              <Text style={styles.patternTextSmall}>{pattern}</Text>
+            </View>
+          ))}
+          {(item.knownPatterns || []).length > 2 && (
+            <Text style={styles.morePatternsSmall}>+{(item.knownPatterns || []).length - 2}</Text>
+          )}
         </View>
       </TouchableOpacity>
     );
   };
 
-  const handleViewUserProfile = (targetUser: UserProfile) => {
-    const compatibility = userProfile ? 
-      UserSearchService.calculateCompatibilityScore(
-        {
-          id: userProfile.id,
-          name: userProfile.name,
-          email: userProfile.email,
-          experience: userProfile.experience,
-          preferredProps: userProfile.preferredProps.map(prop => prop),
-          lastActive: 'online',
-          knownPatterns: userProfile.knownPatterns || [],
-          wantToLearnPatterns: userProfile.wantToLearnPatterns || []
-        },
-        targetUser
-      ) : 0;
+  const renderRequestItem = ({ item }: { item: ConnectionRequest }) => {
+    const handleAcceptRequest = async () => {
+      if (!user) return;
+      
+      try {
+        await ConnectionService.acceptConnectionRequest(item.id);
+        loadConnectionRequests(); // Refresh the list
+        Alert.alert('Success', `You are now connected with ${item.fromUser.name}!`);
+      } catch (error) {
+        console.error('Error accepting connection request:', error);
+        Alert.alert('Error', 'Failed to accept connection request. Please try again.');
+      }
+    };
 
-    // Find shared patterns and teaching opportunities
-    const userKnown = new Set(userProfile?.knownPatterns || []);
-    const userWantToLearn = new Set(userProfile?.wantToLearnPatterns || []);
-    const targetKnown = new Set(targetUser.knownPatterns);
-    const targetWantToLearn = new Set(targetUser.wantToLearnPatterns);
+    const handleDeclineRequest = async () => {
+      if (!user) return;
+      
+      try {
+        await ConnectionService.declineConnectionRequest(item.id);
+        loadConnectionRequests(); // Refresh the list
+      } catch (error) {
+        console.error('Error declining connection request:', error);
+        Alert.alert('Error', 'Failed to decline connection request. Please try again.');
+      }
+    };
 
-    const sharedPatterns = [...userKnown].filter(pattern => targetKnown.has(pattern));
-    const canTeach = [...targetKnown].filter(pattern => userWantToLearn.has(pattern));
-    const canLearn = [...userKnown].filter(pattern => targetWantToLearn.has(pattern));
-
-    navigation.navigate('UserProfileView', {
-      userId: targetUser.id,
-      name: targetUser.name,
-      experience: targetUser.experience,
-      score: compatibility,
-      sharedPatterns,
-      canTeach,
-      canLearn,
-      distance: targetUser.location || 'Location not set',
-      lastActive: targetUser.lastActive,
-    });
-  };
-
-  const handleConnectWithUser = async (targetUser: UserProfile) => {
-    if (!user || !userProfile) {
-      Alert.alert('Error', 'You must be logged in to send connection requests.');
-      return;
-    }
-
-    // Check if already connected
-    if (connectedUserIds.has(targetUser.id)) {
-      Alert.alert('Already Connected', `You're already connected with ${targetUser.name}.`);
-      return;
-    }
-
-    // Check if request already sent
-    const hasPending = await ConnectionService.hasPendingRequest(user.id, targetUser.id);
-    if (hasPending) {
-      Alert.alert('Request Pending', `You've already sent a connection request to ${targetUser.name}.`);
-      return;
-    }
-
-    Alert.alert(
-      'Send Connection Request',
-      `Would you like to send a connection request to ${targetUser.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Send Request',
-          onPress: async () => {
-            const success = await ConnectionService.sendConnectionRequest(
-              user.id,
-              targetUser.id,
-              userProfile.name,
-              targetUser.name
-            );
-
-            if (success) {
-              Alert.alert(
-                'Request Sent!',
-                `Your connection request has been sent to ${targetUser.name}. They will be notified and can accept or decline your request.`,
-                [{ text: 'OK' }]
-              );
-            } else {
-              Alert.alert(
-                'Error',
-                'Failed to send connection request. Please try again.',
-                [{ text: 'OK' }]
-              );
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleViewProfile = (match: MockMatch) => {
-    console.log('Attempting to navigate to UserProfileView with data:', {
-      userId: match.id,
-      name: match.name,
-      experience: match.experience,
-      score: match.score,
-      sharedPatterns: match.sharedPatterns,
-      canTeach: match.canTeach,
-      canLearn: match.canLearn,
-      distance: match.distance,
-      lastActive: match.lastActive,
-    });
-    
-    navigation.navigate('UserProfileView', {
-      userId: match.id,
-      name: match.name,
-      experience: match.experience,
-      score: match.score,
-      sharedPatterns: match.sharedPatterns,
-      canTeach: match.canTeach,
-      canLearn: match.canLearn,
-      distance: match.distance,
-      lastActive: match.lastActive,
-    });
-  };
-
-  const handleConnect = async (match: MockMatch) => {
-    console.log('Connect button pressed for match:', match.name);
-    
-    if (!user) {
-      Alert.alert('Error', 'You must be logged in to send connection requests.');
-      return;
-    }
-
-    // Check if already connected
-    if (connectedUserIds.has(match.id)) {
-      Alert.alert('Already Connected', `You're already connected with ${match.name}.`);
-      return;
-    }
-
-    // Check if request already sent
-    const hasPending = await ConnectionService.hasPendingRequest(user.id, match.id);
-    if (hasPending) {
-      Alert.alert('Request Pending', `You've already sent a connection request to ${match.name}.`);
-      return;
-    }
-
-    Alert.alert(
-      'Send Connection Request',
-      `Would you like to send a connection request to ${match.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Send Request',
-          onPress: async () => {
-            console.log('Sending connection request...');
-            const success = await ConnectionService.sendConnectionRequest(
-              user.id,
-              match.id,
-              userProfile?.name || 'Unknown',
-              match.name
-            );
-
-            if (success) {
-              console.log('Connection request sent successfully');
-              Alert.alert(
-                'Request Sent!',
-                `Your connection request has been sent to ${match.name}. They will be notified and can accept or decline your request.`,
-                [{ text: 'OK' }]
-              );
-            } else {
-              console.log('Failed to send connection request');
-              Alert.alert(
-                'Error',
-                'Failed to send connection request. Please try again.',
-                [{ text: 'OK' }]
-              );
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleAcceptRequest = async (request: any) => {
-    const success = await ConnectionService.acceptConnectionRequest(request.id);
-    if (success) {
-      Alert.alert(
-        'Connection Accepted!',
-        `You are now connected with ${request.fromUserName}. You can now schedule sessions and message each other.`,
-        [{ text: 'OK' }]
-      );
-      loadConnectionData(); // Refresh the data
-    } else {
-      Alert.alert('Error', 'Failed to accept connection request. Please try again.');
-    }
-  };
-
-  const handleDeclineRequest = async (request: any) => {
-    Alert.alert(
-      'Decline Connection Request',
-      `Are you sure you want to decline ${request.fromUserName}'s connection request?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Decline',
-          style: 'destructive',
-          onPress: async () => {
-            const success = await ConnectionService.declineConnectionRequest(request.id);
-            if (success) {
-              loadConnectionData(); // Refresh the data
-            } else {
-              Alert.alert('Error', 'Failed to decline connection request. Please try again.');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const renderMatchItem = ({ item }: { item: MockMatch }) => (
-    <TouchableOpacity style={styles.matchCard}>
-      <View style={styles.matchHeader}>
-        <View style={styles.matchInfo}>
-          <Text style={styles.matchName}>{item.name}</Text>
-          <View style={styles.matchMeta}>
-            <View 
-              style={[
-                styles.experienceBadge, 
-                { backgroundColor: getExperienceColor(item.experience) }
-              ]}
-            >
-              <Text style={styles.experienceText}>{item.experience}</Text>
-            </View>
-            <Text style={styles.distance}>{item.distance}</Text>
-          </View>
-        </View>
-        <View style={styles.scoreContainer}>
-          <Text style={[styles.score, { color: getScoreColor(item.score) }]}>
-            {item.score}%
+    return (
+      <View style={styles.requestCard}>
+        <View style={styles.requestHeader}>
+          <Text style={styles.requestName}>{item.fromUser.name}</Text>
+          <Text style={styles.requestTime}>
+            {new Date(item.createdAt).toLocaleDateString()}
           </Text>
-          <Text style={styles.scoreLabel}>Match</Text>
         </View>
-      </View>
-
-      <View style={styles.patternsSection}>
-        <View style={styles.patternGroup}>
-          <Text style={styles.patternGroupTitle}>Shared Patterns ({item.sharedPatterns.length})</Text>
-          <View style={styles.patternList}>
-            {item.sharedPatterns.slice(0, 2).map((pattern, index) => (
-              <View key={index} style={styles.patternTag}>
-                <Text style={styles.patternTagText}>{pattern}</Text>
-              </View>
-            ))}
-            {item.sharedPatterns.length > 2 && (
-              <Text style={styles.moreText}>+{item.sharedPatterns.length - 2} more</Text>
-            )}
-          </View>
-        </View>
-
-        {item.canTeach.length > 0 && (
-          <View style={styles.patternGroup}>
-            <Text style={styles.patternGroupTitle}>They Can Teach You</Text>
-            <View style={styles.patternList}>
-              {item.canTeach.slice(0, 2).map((pattern, index) => (
-                <View key={index} style={[styles.patternTag, styles.teachTag]}>
-                  <Text style={styles.teachTagText}>{pattern}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
+        
+        <Text style={styles.requestLocation}>{item.fromUser.location}</Text>
+        <Text style={styles.requestSkill}>
+          {item.fromUser.experience} level
+        </Text>
+        
+        {item.message && (
+          <Text style={styles.requestMessage}>"{item.message}"</Text>
         )}
-
-        {item.canLearn.length > 0 && (
-          <View style={styles.patternGroup}>
-            <Text style={styles.patternGroupTitle}>You Can Teach Them</Text>
-            <View style={styles.patternList}>
-              {item.canLearn.slice(0, 2).map((pattern, index) => (
-                <View key={index} style={[styles.patternTag, styles.learnTag]}>
-                  <Text style={styles.learnTagText}>{pattern}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.matchFooter}>
-        <Text style={styles.lastActive}>Active {item.lastActive}</Text>
-        <View style={styles.actionButtons}>
-          <TouchableOpacity 
-            style={styles.secondaryButton}
-            onPress={() => handleViewProfile(item)}
+        
+        <View style={styles.requestActions}>
+          <TouchableOpacity
+            style={styles.declineButton}
+            onPress={handleDeclineRequest}
           >
-            <Text style={styles.secondaryButtonText}>View Profile</Text>
+            <Text style={styles.declineButtonText}>Decline</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.primaryButton}
-            onPress={() => handleConnect(item)}
+          
+          <TouchableOpacity
+            style={styles.acceptButton}
+            onPress={handleAcceptRequest}
           >
-            <Text style={styles.primaryButtonText}>Connect</Text>
+            <Text style={styles.acceptButtonText}>Accept</Text>
           </TouchableOpacity>
         </View>
       </View>
-    </TouchableOpacity>
-  );
-
-  const renderRequestItem = ({ item }: { item: any }) => (
-    <View style={styles.requestCard}>
-      <View style={styles.requestHeader}>
-        <Text style={styles.requestName}>{item.fromUserName}</Text>
-        <Text style={styles.requestTime}>
-          {new Date(item.createdAt).toLocaleDateString()}
-        </Text>
-      </View>
-      
-      {item.message && (
-        <Text style={styles.requestMessage}>"{item.message}"</Text>
-      )}
-      
-      <View style={styles.requestActions}>
-        <TouchableOpacity 
-          style={styles.declineButton}
-          onPress={() => handleDeclineRequest(item)}
-        >
-          <Text style={styles.declineButtonText}>Decline</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.acceptButton}
-          onPress={() => handleAcceptRequest(item)}
-        >
-          <Text style={styles.acceptButtonText}>Accept</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderSearchTab = () => (
-    <View style={styles.searchContainer}>
-      <View style={styles.searchHeader}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search for jugglers by name..."
-          value={searchQuery}
-          onChangeText={handleSearch}
-          clearButtonMode="while-editing"
-        />
-        <Text style={styles.searchResultsText}>
-          {searching ? 'Searching...' : `${searchResults.length} juggler${searchResults.length !== 1 ? 's' : ''} found`}
-        </Text>
-      </View>
-      
-      {searchResults.length > 0 ? (
-        <FlatList
-          data={searchResults}
-          renderItem={renderSearchResultItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-        />
-      ) : !searching && searchQuery.trim() ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateIcon}>🔍</Text>
-          <Text style={styles.emptyStateTitle}>No Users Found</Text>
-          <Text style={styles.emptyStateText}>
-            No jugglers found matching "{searchQuery}". Try a different search term.
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateIcon}>👥</Text>
-          <Text style={styles.emptyStateTitle}>Search for Jugglers</Text>
-          <Text style={styles.emptyStateText}>
-            Enter a name above to search for specific jugglers you'd like to connect with.
-          </Text>
-        </View>
-      )}
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -625,6 +365,7 @@ export default function MatchesScreen({}: MatchesScreenProps) {
               Matches
             </Text>
           </TouchableOpacity>
+          
           <TouchableOpacity
             style={[styles.tab, selectedTab === 'search' && styles.activeTab]}
             onPress={() => setSelectedTab('search')}
@@ -633,6 +374,7 @@ export default function MatchesScreen({}: MatchesScreenProps) {
               Search
             </Text>
           </TouchableOpacity>
+          
           <TouchableOpacity
             style={[styles.tab, selectedTab === 'requests' && styles.activeTab]}
             onPress={() => setSelectedTab('requests')}
@@ -640,21 +382,90 @@ export default function MatchesScreen({}: MatchesScreenProps) {
             <Text style={[styles.tabText, selectedTab === 'requests' && styles.activeTabText]}>
               Requests
             </Text>
+            {connectionRequests.length > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{connectionRequests.length}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
 
-      {selectedTab === 'matches' ? (
-        <FlatList
-          data={mockMatches}
-          renderItem={renderMatchItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-        />
-      ) : selectedTab === 'search' ? (
-        renderSearchTab()
-      ) : (
+      {selectedTab === 'matches' && (
+        loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#3b82f6" />
+            <Text style={styles.loadingText}>Finding your matches...</Text>
+          </View>
+        ) : matches.length > 0 ? (
+          <FlatList
+            data={matches}
+            renderItem={renderMatchItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContainer}
+            showsVerticalScrollIndicator={false}
+          />
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateIcon}>🎪</Text>
+            <Text style={styles.emptyStateTitle}>No Matches Yet</Text>
+            <Text style={styles.emptyStateText}>
+              We're still finding jugglers that match your preferences. Check back soon!
+            </Text>
+          </View>
+        )
+      )}
+
+      {selectedTab === 'search' && (
+        <View style={styles.searchContainer}>
+          <View style={styles.searchInputContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search for jugglers by name..."
+              value={searchQuery}
+              onChangeText={handleSearch}
+              autoCorrect={false}
+              clearButtonMode="while-editing"
+            />
+          </View>
+          
+          {searchResults.length > 0 ? (
+            <FlatList
+              data={searchResults}
+              renderItem={renderSearchResultItem}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContainer}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : searching ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>🔍</Text>
+              <Text style={styles.emptyStateTitle}>Searching...</Text>
+              <Text style={styles.emptyStateText}>
+                Looking for jugglers matching your search.
+              </Text>
+            </View>
+          ) : searchQuery.trim() !== '' ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>🔍</Text>
+              <Text style={styles.emptyStateTitle}>No Results Found</Text>
+              <Text style={styles.emptyStateText}>
+                No jugglers found matching "{searchQuery}". Try a different search term.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>🔍</Text>
+              <Text style={styles.emptyStateTitle}>Search for Jugglers</Text>
+              <Text style={styles.emptyStateText}>
+                Enter a name above to find specific jugglers you'd like to connect with.
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {selectedTab === 'requests' && (
         connectionRequests.length > 0 ? (
           <FlatList
             data={connectionRequests}
@@ -695,193 +506,48 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 16,
     alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    position: 'relative',
   },
   activeTab: {
-    borderBottomColor: '#6366f1',
+    borderBottomWidth: 2,
+    borderBottomColor: '#3b82f6',
   },
   tabText: {
     fontSize: 16,
-    fontWeight: '500',
     color: '#6b7280',
+    fontWeight: '500',
   },
   activeTabText: {
-    color: '#6366f1',
+    color: '#3b82f6',
   },
-  searchContainer: {
+  badge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  loadingContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  searchHeader: {
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  searchInput: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  loadingText: {
+    marginTop: 16,
     fontSize: 16,
-    marginBottom: 8,
-    backgroundColor: '#ffffff',
-  },
-  searchResultsText: {
-    fontSize: 14,
     color: '#6b7280',
-    fontStyle: 'italic',
   },
   listContainer: {
     padding: 16,
-  },
-  matchCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  matchHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  matchInfo: {
-    flex: 1,
-  },
-  matchName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 4,
-  },
-  matchMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  experienceBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 8,
-  },
-  experienceText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  distance: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  scoreContainer: {
-    alignItems: 'center',
-  },
-  score: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  scoreLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  description: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  patternsSection: {
-    marginBottom: 16,
-  },
-  patternGroup: {
-    marginBottom: 12,
-  },
-  patternGroupTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  patternList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-  },
-  patternTag: {
-    backgroundColor: '#f3f4f6',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 6,
-    marginBottom: 4,
-  },
-  patternTagText: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  teachTag: {
-    backgroundColor: '#dcfce7',
-  },
-  teachTagText: {
-    color: '#166534',
-  },
-  learnTag: {
-    backgroundColor: '#dbeafe',
-  },
-  learnTagText: {
-    color: '#1e40af',
-  },
-  moreText: {
-    fontSize: 12,
-    color: '#6b7280',
-    fontStyle: 'italic',
-  },
-  matchFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  lastActive: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-  },
-  secondaryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    marginRight: 8,
-  },
-  secondaryButtonText: {
-    fontSize: 14,
-    color: '#6b7280',
-    fontWeight: '500',
-  },
-  primaryButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#6366f1',
-  },
-  primaryButtonText: {
-    fontSize: 14,
-    color: '#ffffff',
-    fontWeight: '500',
   },
   emptyState: {
     flex: 1,
@@ -894,39 +560,224 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#1f2937',
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptyStateText: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#6b7280',
     textAlign: 'center',
+    lineHeight: 24,
+  },
+  matchCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  matchHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  matchInfo: {
+    flex: 1,
+  },
+  matchName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  matchLocation: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  compatibilityBadge: {
+    alignItems: 'center',
+  },
+  compatibilityScore: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  compatibilityLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  matchSkill: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 8,
+  },
+  matchBio: {
+    fontSize: 14,
+    color: '#374151',
     lineHeight: 20,
+    marginBottom: 12,
+  },
+  matchPatterns: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+  },
+  patternTag: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 8,
+    marginBottom: 4,
+  },
+  patternText: {
+    fontSize: 12,
+    color: '#3b82f6',
+    fontWeight: '500',
+  },
+  morePatterns: {
+    fontSize: 12,
+    color: '#6b7280',
+    alignSelf: 'center',
+  },
+  connectButton: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  connectButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  searchContainer: {
+    flex: 1,
+  },
+  searchInputContainer: {
+    padding: 16,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  searchInput: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+  },
+  searchResultCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  searchResultHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  searchResultInfo: {
+    flex: 1,
+  },
+  searchResultName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  searchResultLocation: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  searchResultSkill: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  searchResultActions: {
+    alignItems: 'flex-end',
+  },
+  compatibilityBadgeSmall: {
+    marginBottom: 8,
+  },
+  compatibilityScoreSmall: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  connectButtonSmall: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  connectButtonSmallText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  searchResultBio: {
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  searchResultPatterns: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  patternTagSmall: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginRight: 6,
+    marginBottom: 2,
+  },
+  patternTextSmall: {
+    fontSize: 10,
+    color: '#3b82f6',
+    fontWeight: '500',
+  },
+  morePatternsSmall: {
+    fontSize: 10,
+    color: '#6b7280',
+    alignSelf: 'center',
   },
   requestCard: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: 4,
     elevation: 3,
   },
   requestHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 8,
   },
   requestName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#1f2937',
   },
@@ -934,30 +785,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6b7280',
   },
+  requestLocation: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 2,
+  },
+  requestSkill: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 8,
+  },
   requestMessage: {
     fontSize: 14,
-    color: '#4b5563',
+    color: '#374151',
     fontStyle: 'italic',
-    marginBottom: 12,
-    paddingLeft: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#e5e7eb',
+    marginBottom: 16,
+    paddingHorizontal: 8,
   },
   requestActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    marginTop: 8,
   },
   declineButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ef4444',
+    backgroundColor: '#f3f4f6',
     marginRight: 8,
   },
   declineButtonText: {
     fontSize: 14,
-    color: '#ef4444',
+    color: '#6b7280',
     fontWeight: '500',
   },
   acceptButton: {

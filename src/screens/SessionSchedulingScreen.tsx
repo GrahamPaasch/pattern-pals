@@ -37,11 +37,12 @@ export default function SessionSchedulingScreen({ navigation, route }: Props) {
   const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
   const [patterns, setPatterns] = useState('');
+  const [partnerName, setPartnerName] = useState(route.params?.partnerName || '');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { partnerId, partnerName } = route.params || {};
+  const { partnerId } = route.params || {};
 
   const handleScheduleSession = async () => {
     if (!user?.id) {
@@ -72,7 +73,7 @@ export default function SessionSchedulingScreen({ navigation, route }: Props) {
       const sessionData = {
         hostId: user.id,
         partnerId: partnerId || undefined,
-        partnerName: partnerName || undefined,
+        partnerName: partnerName.trim() || undefined,
         scheduledTime: scheduledDateTime,
         duration: 90, // Default 90 minutes
         location: location.trim(),
@@ -87,7 +88,7 @@ export default function SessionSchedulingScreen({ navigation, route }: Props) {
       if (success) {
         Alert.alert(
           'Session Scheduled!',
-          `Your practice session${partnerName ? ` with ${partnerName}` : ''} has been scheduled for ${sessionDate.toLocaleDateString()} at ${sessionTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`,
+          `Your practice session${partnerName.trim() ? ` with ${partnerName.trim()}` : ''} has been scheduled for ${sessionDate.toLocaleDateString()} at ${sessionTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`,
           [
             { 
               text: 'OK', 
@@ -131,6 +132,16 @@ export default function SessionSchedulingScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.form}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Practice Partner</Text>
+            <TextInput
+              style={styles.input}
+              value={partnerName}
+              onChangeText={setPartnerName}
+              placeholder="Enter partner's name (optional)"
+            />
+          </View>
+
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Date</Text>
             <TouchableOpacity
