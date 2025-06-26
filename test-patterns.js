@@ -1,5 +1,19 @@
 // Quick test of the new pattern structure
-const { patterns, getPatternsBySourceType, getUserContributedPatterns, getHighRatedPatterns } = require('./src/data/patterns.ts');
+const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'patterns-'));
+execSync(`tsc src/data/patterns.ts --target ES2017 --module commonjs --outDir ${tmpDir}`);
+const outFile = path.join(tmpDir, 'data', 'patterns.js');
+
+const {
+  patterns,
+  getPatternsBySourceType,
+  getUserContributedPatterns,
+  getHighRatedPatterns
+} = require(outFile);
 
 console.log('🧪 Testing Pattern Structure');
 console.log('============================');
