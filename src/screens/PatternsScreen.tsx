@@ -178,13 +178,13 @@ export default function PatternsScreen() {
         </View>
 
         <View style={styles.patternTags}>
-          {item.tags.slice(0, 3).map((tag) => (
-            <View key={tag} style={styles.tag}>
+          {item.tags.slice(0, 3).map((tag, index) => (
+            <View key={`tag-${tag}-${index}`} style={styles.tag}>
               <Text style={styles.tagText}>{tag}</Text>
             </View>
           ))}
           {item.source.type === 'user_contributed' && (
-            <View style={[styles.tag, styles.userContributedTag]}>
+            <View key="user-contributed" style={[styles.tag, styles.userContributedTag]}>
               <Text style={[styles.tagText, styles.userContributedText]}>
                 {item.communityRating ? `⭐${item.communityRating}` : 'New'}
               </Text>

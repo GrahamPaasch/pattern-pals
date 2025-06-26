@@ -19,6 +19,31 @@ export class ScheduleService {
   private static STORAGE_KEY = 'scheduled_sessions';
 
   /**
+   * Get only user sessions (excluding demo sessions)
+   */
+  private static async getUserSessions(userId: string): Promise<ScheduledSession[]> {
+    try {
+      const key = `${this.STORAGE_KEY}_${userId}`;
+      const storedData = await AsyncStorage.getItem(key);
+      
+      if (storedData) {
+        const userSessions = JSON.parse(storedData);
+        return userSessions.map((item: any) => ({
+          ...item,
+          scheduledTime: new Date(item.scheduledTime),
+          createdAt: new Date(item.createdAt),
+          updatedAt: new Date(item.updatedAt)
+        }));
+      }
+
+      return [];
+    } catch (error) {
+      console.error('Error in getUserSessions:', error);
+      return [];
+    }
+  }
+
+  /**
    * Get all sessions for a user
    */
   static async getAllSessions(userId: string): Promise<ScheduledSession[]> {
@@ -89,19 +114,21 @@ export class ScheduleService {
   ): Promise<boolean> {
     try {
       console.log('ScheduleService.addSession called with:', { userId, session });
-      const existingSessions = await this.getAllSessions(userId);
-      console.log('Existing sessions before add:', existingSessions);
+      
+      // Get only user sessions (not demo sessions) to avoid conflicts
+      const userSessions = await this.getUserSessions(userId);
+      console.log('Existing user sessions before add:', userSessions.length);
       
       const newSession: ScheduledSession = {
         ...session,
-        id: Date.now().toString(),
+        id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         createdAt: new Date(),
         updatedAt: new Date()
       };
       console.log('New session to add:', newSession);
 
-      const updatedSessions = [...existingSessions, newSession];
-      console.log('Updated sessions array:', updatedSessions);
+      const updatedSessions = [...userSessions, newSession];
+      console.log('Updated user sessions array:', updatedSessions.length);
       
       const key = `${this.STORAGE_KEY}_${userId}`;
       console.log('Storage key:', key);
@@ -124,8 +151,9 @@ export class ScheduleService {
     updates: Partial<Omit<ScheduledSession, 'id' | 'createdAt' | 'updatedAt'>>
   ): Promise<boolean> {
     try {
-      const sessions = await this.getAllSessions(userId);
-      const updatedSessions = sessions.map(session =>
+      // Only update user sessions (not demo sessions)
+      const userSessions = await this.getUserSessions(userId);
+      const updatedSessions = userSessions.map(session =>
         session.id === sessionId
           ? { ...session, ...updates, updatedAt: new Date() }
           : session
@@ -153,8 +181,9 @@ export class ScheduleService {
    */
   static async deleteSession(userId: string, sessionId: string): Promise<boolean> {
     try {
-      const sessions = await this.getAllSessions(userId);
-      const filteredSessions = sessions.filter(session => session.id !== sessionId);
+      // Only delete user sessions (not demo sessions)
+      const userSessions = await this.getUserSessions(userId);
+      const filteredSessions = userSessions.filter(session => session.id !== sessionId);
 
       const key = `${this.STORAGE_KEY}_${userId}`;
       await AsyncStorage.setItem(key, JSON.stringify(filteredSessions));
@@ -225,6 +254,31 @@ export class ScheduleService {
   }
 
   /**
+   * Clear sessions with problematic IDs (for fixing duplicate ID issues)
+   */
+  static async clearProblematicSessions(userId: string): Promise<boolean> {
+    try {
+      // Get current user sessions
+      const userSessions = await this.getUserSessions(userId);
+      
+      // Filter out sessions with old simple numeric IDs that might conflict with demo sessions
+      const cleanedSessions = userSessions.filter(session => 
+        !['1', '2', '3'].includes(session.id) && 
+        !session.id.startsWith('demo_')
+      );
+      
+      const key = `${this.STORAGE_KEY}_${userId}`;
+      await AsyncStorage.setItem(key, JSON.stringify(cleanedSessions));
+      
+      console.log(`Cleared ${userSessions.length - cleanedSessions.length} problematic sessions`);
+      return true;
+    } catch (error) {
+      console.error('Error in clearProblematicSessions:', error);
+      return false;
+    }
+  }
+
+  /**
    * Generate demo sessions for testing
    */
   private static getDemoSessions(userId: string): ScheduledSession[] {
@@ -238,7 +292,7 @@ export class ScheduleService {
 
     return [
       {
-        id: '1',
+        id: 'demo_1',
         hostId: userId,
         partnerId: 'partner1',
         partnerName: 'Alex Chen',
@@ -252,7 +306,7 @@ export class ScheduleService {
         updatedAt: new Date(now.getTime() - 24 * 60 * 60 * 1000),
       },
       {
-        id: '2',
+        id: 'demo_2',
         hostId: userId,
         partnerId: 'partner2',
         partnerName: 'Sarah Johnson',
@@ -265,7 +319,7 @@ export class ScheduleService {
         updatedAt: new Date(now.getTime() - 12 * 60 * 60 * 1000),
       },
       {
-        id: '3',
+        id: 'demo_3',
         hostId: userId,
         scheduledTime: new Date(lastWeek.setHours(17, 0, 0, 0)),
         duration: 120,

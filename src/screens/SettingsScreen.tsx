@@ -72,6 +72,30 @@ export default function SettingsScreen({ navigation }: Props) {
     }
   };
 
+  const handleFixDuplicateSessions = async () => {
+    if (!user?.id) return;
+    
+    Alert.alert(
+      'Fix Duplicate Sessions',
+      'This will clean up any duplicate session data that might be causing display issues. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Fix Issues',
+          style: 'default',
+          onPress: async () => {
+            try {
+              await ScheduleService.clearProblematicSessions(user.id);
+              Alert.alert('Success', 'Session data has been cleaned up');
+            } catch {
+              Alert.alert('Error', 'Failed to clean up session data');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleClearData = () => {
     Alert.alert(
       'Clear App Data',
@@ -226,6 +250,11 @@ export default function SettingsScreen({ navigation }: Props) {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data & Storage</Text>
+          
+          <TouchableOpacity style={styles.menuItem} onPress={handleFixDuplicateSessions}>
+            <Text style={styles.menuItemText}>Fix Session Issues</Text>
+            <Text style={styles.menuItemChevron}>›</Text>
+          </TouchableOpacity>
           
           <TouchableOpacity style={styles.menuItem} onPress={handleClearData}>
             <Text style={styles.menuItemText}>Clear App Data</Text>

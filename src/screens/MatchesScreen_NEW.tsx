@@ -208,8 +208,8 @@ export default function MatchesScreen({}: MatchesScreenProps) {
           <View style={styles.patternGroup}>
             <Text style={styles.patternGroupTitle}>Known Patterns ({item.knownPatterns.length})</Text>
             <View style={styles.patternList}>
-              {item.knownPatterns.slice(0, 3).map((pattern: string) => (
-                <View key={pattern} style={styles.patternTag}>
+              {item.knownPatterns.slice(0, 3).map((pattern: string, index: number) => (
+                <View key={`known-${pattern}-${index}`} style={styles.patternTag}>
                   <Text style={styles.patternTagText}>{pattern}</Text>
                 </View>
               ))}
@@ -482,8 +482,8 @@ export default function MatchesScreen({}: MatchesScreenProps) {
         <View style={styles.patternGroup}>
           <Text style={styles.patternGroupTitle}>Shared Patterns ({item.sharedPatterns.length})</Text>
           <View style={styles.patternList}>
-            {item.sharedPatterns.slice(0, 2).map((pattern) => (
-              <View key={pattern} style={styles.patternTag}>
+            {item.sharedPatterns.slice(0, 2).map((pattern, index) => (
+              <View key={`shared-${pattern}-${index}`} style={styles.patternTag}>
                 <Text style={styles.patternTagText}>{pattern}</Text>
               </View>
             ))}
@@ -497,8 +497,8 @@ export default function MatchesScreen({}: MatchesScreenProps) {
           <View style={styles.patternGroup}>
             <Text style={styles.patternGroupTitle}>They Can Teach You</Text>
             <View style={styles.patternList}>
-              {item.canTeach.slice(0, 2).map((pattern) => (
-                <View key={pattern} style={[styles.patternTag, styles.teachTag]}>
+              {item.canTeach.slice(0, 2).map((pattern, index) => (
+                <View key={`teach-${pattern}-${index}`} style={[styles.patternTag, styles.teachTag]}>
                   <Text style={styles.teachTagText}>{pattern}</Text>
                 </View>
               ))}
@@ -510,8 +510,8 @@ export default function MatchesScreen({}: MatchesScreenProps) {
           <View style={styles.patternGroup}>
             <Text style={styles.patternGroupTitle}>You Can Teach Them</Text>
             <View style={styles.patternList}>
-              {item.canLearn.slice(0, 2).map((pattern) => (
-                <View key={pattern} style={[styles.patternTag, styles.learnTag]}>
+              {item.canLearn.slice(0, 2).map((pattern, index) => (
+                <View key={`learn-${pattern}-${index}`} style={[styles.patternTag, styles.learnTag]}>
                   <Text style={styles.learnTagText}>{pattern}</Text>
                 </View>
               ))}

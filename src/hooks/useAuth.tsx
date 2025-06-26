@@ -23,30 +23,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const loadStoredUser = async () => {
+      console.log('AuthProvider: Starting to load stored user...');
       try {
         // Check for stored mock user
         const storedUser = await AsyncStorage.getItem('mock_user');
         const storedProfile = await AsyncStorage.getItem('mock_profile');
         
+        console.log('AuthProvider: storedUser exists:', !!storedUser);
+        console.log('AuthProvider: storedProfile exists:', !!storedProfile);
+        
         if (storedUser && storedProfile) {
           const mockUser = JSON.parse(storedUser);
           const profile = JSON.parse(storedProfile);
           
+          console.log('AuthProvider: Setting user and profile from storage');
           setUser(mockUser);
           setUserProfile({
             ...profile,
             createdAt: new Date(profile.createdAt),
             updatedAt: new Date(profile.updatedAt),
           });
+        } else {
+          console.log('AuthProvider: No stored user/profile found');
         }
       } catch (error) {
         console.error('Error loading stored user:', error);
       } finally {
+        console.log('AuthProvider: Setting loading to false');
         setLoading(false);
       }
     };
     
-    loadStoredUser();
+    // Immediate timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.log('AuthProvider: Force setting loading to false after 1 second');
+      setLoading(false);
+    }, 1000); // Reduced to 1 second
+    
+    loadStoredUser().then(() => {
+      clearTimeout(timeoutId);
+    }).catch(() => {
+      console.log('AuthProvider: Error in loadStoredUser, setting loading to false');
+      setLoading(false);
+      clearTimeout(timeoutId);
+    });
+    
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   const fetchUserProfile = async (userId: string) => {
