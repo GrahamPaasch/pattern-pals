@@ -15,6 +15,7 @@ import { User } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { UserSearchService, UserProfile } from '../services/userSearch';
 import { ConnectionService } from '../services/connections';
+import { SyncService } from '../services/sync';
 
 interface MatchesScreenProps {
   navigation: any;
@@ -67,6 +68,28 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
       loadConnectionStates();
     }
   }, [selectedTab, user]);
+
+  // Periodic sync check
+  useEffect(() => {
+    const syncInterval = setInterval(async () => {
+      if (await SyncService.isOnline()) {
+        await SyncService.sync();
+      }
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(syncInterval);
+  }, []);
+
+  // Sync when app becomes active
+  useEffect(() => {
+    const handleAppStateChange = async () => {
+      if (await SyncService.isOnline()) {
+        await SyncService.sync();
+      }
+    };
+
+    handleAppStateChange(); // Initial sync check
+  }, []);
 
   const loadAllUsers = async () => {
     if (!user) return;

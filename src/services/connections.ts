@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { SyncService } from './sync';
 
 export interface ConnectionRequest {
   id: string;
@@ -132,6 +133,14 @@ export class ConnectionService {
 
       const updatedRequests = [...requests, newRequest];
       await AsyncStorage.setItem(this.CONNECTION_REQUESTS_KEY, JSON.stringify(updatedRequests));
+      
+      // Queue sync operation for when online
+      await SyncService.queueOperation({
+        service: 'connections',
+        action: 'sendRequest',
+        data: newRequest,
+        timestamp: Date.now(),
+      });
       
       console.log(`ConnectionService: Successfully saved request locally. New count: ${updatedRequests.length}`);
       return true;
@@ -379,6 +388,14 @@ export class ConnectionService {
       const updatedConnections = [...connections, connection];
       await AsyncStorage.setItem(this.CONNECTIONS_KEY, JSON.stringify(updatedConnections));
 
+      // Queue sync operation for when online
+      await SyncService.queueOperation({
+        service: 'connections',
+        action: 'acceptRequest',
+        data: { request: requests[requestIndex], connection },
+        timestamp: Date.now(),
+      });
+
       return true;
     } catch (error) {
       console.error('Error accepting connection request locally:', error);
@@ -439,6 +456,15 @@ export class ConnectionService {
       };
 
       await AsyncStorage.setItem(this.CONNECTION_REQUESTS_KEY, JSON.stringify(requests));
+      
+      // Queue sync operation for when online
+      await SyncService.queueOperation({
+        service: 'connections',
+        action: 'declineRequest',
+        data: { request: requests[requestIndex] },
+        timestamp: Date.now(),
+      });
+      
       return true;
     } catch (error) {
       console.error('Error declining connection request locally:', error);

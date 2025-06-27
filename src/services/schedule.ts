@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SyncService } from './sync';
 
 export interface ScheduledSession {
   id: string;
@@ -134,7 +135,14 @@ export class ScheduleService {
       console.log('Storage key:', key);
       await AsyncStorage.setItem(key, JSON.stringify(updatedSessions));
       console.log('Successfully saved to AsyncStorage');
-      
+
+      await SyncService.queueOperation({
+        service: 'sessions',
+        action: 'add',
+        data: newSession,
+        timestamp: Date.now(),
+      });
+
       return true;
     } catch (error) {
       console.error('Error in addSession:', error);
@@ -161,7 +169,17 @@ export class ScheduleService {
 
       const key = `${this.STORAGE_KEY}_${userId}`;
       await AsyncStorage.setItem(key, JSON.stringify(updatedSessions));
-      
+
+      const updatedSession = updatedSessions.find(s => s.id === sessionId);
+      if (updatedSession) {
+        await SyncService.queueOperation({
+          service: 'sessions',
+          action: 'update',
+          data: updatedSession,
+          timestamp: Date.now(),
+        });
+      }
+
       return true;
     } catch (error) {
       console.error('Error in updateSession:', error);
@@ -187,7 +205,14 @@ export class ScheduleService {
 
       const key = `${this.STORAGE_KEY}_${userId}`;
       await AsyncStorage.setItem(key, JSON.stringify(filteredSessions));
-      
+
+      await SyncService.queueOperation({
+        service: 'sessions',
+        action: 'delete',
+        data: { id: sessionId },
+        timestamp: Date.now(),
+      });
+
       return true;
     } catch (error) {
       console.error('Error in deleteSession:', error);
