@@ -9,6 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { User } from '../types';
 import { useAuth } from '../hooks/useAuth';
@@ -21,10 +22,16 @@ interface MatchesScreenProps {
 
 interface ConnectionRequest {
   id: string;
-  fromUser: UserProfile;
+  fromUserId: string;
+  fromUserName: string;
+  toUserId: string;
+  toUserName: string;
   message?: string;
+  status: 'pending' | 'accepted' | 'declined';
   createdAt: string;
 }
+
+type ConnectionState = 'none' | 'pending_out' | 'pending_in' | 'connected';
 
 export default function MatchesScreen({ navigation }: MatchesScreenProps) {
   const { user, userProfile } = useAuth();
@@ -35,18 +42,101 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
   const [searching, setSearching] = useState(false);
   const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [connectionStates, setConnectionStates] = useState<Map<string, ConnectionState>>(new Map());
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadMatches();
     loadConnectionRequests();
+    loadConnectionStates();
   }, [user]);
+
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      loadAllUsers();
+    } else {
+      handleSearch(searchQuery);
+    }
+  }, [user]);
+
+  // Reload connection data when switching to requests tab
+  useEffect(() => {
+    if (selectedTab === 'requests' && user) {
+      console.log('Requests tab selected, reloading connection data');
+      loadConnectionRequests();
+      loadConnectionStates();
+    }
+  }, [selectedTab, user]);
+
+  const loadAllUsers = async () => {
+    if (!user) return;
+    
+    try {
+      setSearching(true);
+      const results = await UserSearchService.getAllUsers(user.id);
+      setSearchResults(results);
+    } catch (error) {
+      console.error('Error loading all users:', error);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const loadConnectionStates = async () => {
+    if (!user) return;
+
+    try {
+      // Get all connections and requests to determine states
+      const [connections, allRequests, sentRequests] = await Promise.all([
+        ConnectionService.getConnectionsForUser(user.id),
+        ConnectionService.getConnectionRequestsForUser(user.id),
+        ConnectionService.getConnectionRequestsSentByUser(user.id)
+      ]);
+
+      const stateMap = new Map<string, ConnectionState>();
+
+      // Mark connected users
+      connections.forEach((conn: any) => {
+        const otherUserId = conn.userId1 === user.id ? conn.userId2 : conn.userId1;
+        stateMap.set(otherUserId, 'connected');
+      });
+
+      // Process incoming requests
+      allRequests.forEach((req: any) => {
+        if (req.status === 'pending' && req.toUserId === user.id) {
+          stateMap.set(req.fromUserId, 'pending_in');
+        }
+      });
+
+      // Process outgoing requests (sent by this user)
+      sentRequests.forEach((req: any) => {
+        if (req.status === 'pending' && req.fromUserId === user.id) {
+          stateMap.set(req.toUserId, 'pending_out');
+        }
+      });
+
+      console.log('Connection states loaded:', Array.from(stateMap.entries()));
+      setConnectionStates(stateMap);
+    } catch (error) {
+      console.error('Error loading connection states:', error);
+    }
+  };
 
   const loadMatches = async () => {
     if (!user) return;
     
     try {
       setLoading(true);
-      // Mock matches data - in a real app, this would fetch from your backend
+      // Load real users from Supabase instead of mock data
+      const allUsers = await UserSearchService.getAllUsers(user.id);
+      
+      // Filter to get potential matches (you could implement more sophisticated matching logic here)
+      const potentialMatches = allUsers.filter(u => u.id !== user.id).slice(0, 10);
+      
+      setMatches(potentialMatches);
+    } catch (error) {
+      console.error('Error loading matches:', error);
+      // Fallback to mock data if Supabase fails
       const mockMatches: UserProfile[] = [
         {
           id: '2',
@@ -74,20 +164,47 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
         },
       ];
       setMatches(mockMatches);
-    } catch (error) {
-      console.error('Error loading matches:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const refreshData = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      loadMatches(),
+      loadConnectionRequests(),
+      loadConnectionStates()
+    ]);
+    setRefreshing(false);
   };
 
   const loadConnectionRequests = async () => {
     if (!user) return;
     
     try {
-      // Mock requests data - in a real app, this would fetch from your backend
-      const mockRequests: ConnectionRequest[] = [];
-      setConnectionRequests(mockRequests);
+      console.log('Loading connection requests for user:', user.id);
+      
+      // Get incoming connection requests from ConnectionService
+      const allRequests = await ConnectionService.getConnectionRequestsForUser(user.id);
+      console.log('Raw requests from service:', allRequests);
+      
+      // Filter to only incoming requests that are still pending
+      const incomingRequests = allRequests
+        .filter((req: any) => req.toUserId === user.id && req.status === 'pending')
+        .map((req: any) => ({
+          id: req.id,
+          fromUserId: req.fromUserId,
+          fromUserName: req.fromUserName,
+          toUserId: req.toUserId,
+          toUserName: req.toUserName,
+          message: req.message,
+          status: req.status,
+          createdAt: req.createdAt
+        }));
+
+      console.log('Processed incoming requests:', incomingRequests);
+      setConnectionRequests(incomingRequests);
     } catch (error) {
       console.error('Error loading connection requests:', error);
     }
@@ -121,12 +238,126 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
   const handleConnect = async (targetUser: UserProfile) => {
     if (!user || !userProfile) return;
 
+    // Check current connection state
+    const currentState = connectionStates.get(targetUser.id);
+    if (currentState === 'connected') {
+      Alert.alert('✅ Already Connected', `You're already connected with ${targetUser.name}. You can schedule sessions or message them directly!`);
+      return;
+    }
+    if (currentState === 'pending_out') {
+      Alert.alert('⏳ Request Pending', `You've already sent a connection request to ${targetUser.name}. Please wait for their response.`);
+      return;
+    }
+    if (currentState === 'pending_in') {
+      Alert.alert('📥 Respond to Request', `${targetUser.name} has already sent you a connection request. Check your Requests tab to accept or decline it.`);
+      return;
+    }
+
     try {
-      await ConnectionService.sendConnectionRequest(user.id, targetUser.id, userProfile.name, targetUser.name);
-      Alert.alert('Success', `Connection request sent to ${targetUser.name}!`);
+      const success = await ConnectionService.sendConnectionRequest(
+        user.id, 
+        targetUser.id, 
+        userProfile.name, 
+        targetUser.name
+      );
+
+      if (success) {
+        // Update the connection state immediately to show pending
+        setConnectionStates(prev => new Map(prev.set(targetUser.id, 'pending_out')));
+        
+        Alert.alert(
+          '✅ Request Sent!', 
+          `Your connection request has been sent to ${targetUser.name}. They'll receive a notification and can accept or decline your request.`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('❌ Error', 'Failed to send connection request. Please try again.');
+      }
     } catch (error) {
       console.error('Error sending connection request:', error);
       Alert.alert('Error', 'Failed to send connection request. Please try again.');
+    }
+  };
+
+  const handleAcceptRequest = async (requestId: string, fromUserId: string, fromUserName: string) => {
+    if (!user || !userProfile) return;
+
+    try {
+      const success = await ConnectionService.acceptConnectionRequest(requestId);
+      
+      if (success) {
+        // Update connection state and reload data
+        setConnectionStates(prev => new Map(prev.set(fromUserId, 'connected')));
+        await Promise.all([
+          loadConnectionRequests(),
+          loadConnectionStates()
+        ]);
+        
+        Alert.alert(
+          '🎉 Connected!', 
+          `You are now connected with ${fromUserName}! You can now schedule practice sessions together and exchange messages.`,
+          [{ text: 'Great!' }]
+        );
+      } else {
+        Alert.alert('Error', 'Failed to accept connection request. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error accepting connection request:', error);
+      Alert.alert('Error', 'Failed to accept connection request. Please try again.');
+    }
+  };
+
+  const handleDeclineRequest = async (requestId: string, fromUserName: string) => {
+    try {
+      const success = await ConnectionService.declineConnectionRequest(requestId);
+      
+      if (success) {
+        await Promise.all([
+          loadConnectionRequests(),
+          loadConnectionStates()
+        ]);
+        Alert.alert('Request Declined', `Connection request from ${fromUserName} has been declined.`);
+      } else {
+        Alert.alert('Error', 'Failed to decline connection request. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error declining connection request:', error);
+      Alert.alert('Error', 'Failed to decline connection request. Please try again.');
+    }
+  };
+
+  const getConnectionButtonConfig = (userId: string) => {
+    const state = connectionStates.get(userId) || 'none';
+    
+    switch (state) {
+      case 'connected':
+        return {
+          text: '✓ Connected',
+          color: '#10b981', // Green
+          disabled: true,
+          textColor: '#ffffff'
+        };
+      case 'pending_out':
+        return {
+          text: '⏳ Pending',
+          color: '#f59e0b', // Yellow/Amber
+          disabled: true,
+          textColor: '#ffffff'
+        };
+      case 'pending_in':
+        return {
+          text: '↗️ Respond',
+          color: '#3b82f6', // Blue
+          disabled: false,
+          textColor: '#ffffff'
+        };
+      default:
+        return {
+          text: 'Connect',
+          color: '#6366f1', // Purple
+          disabled: false,
+          textColor: '#ffffff'
+        };
     }
   };
 
@@ -215,6 +446,7 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
 
   const renderMatchItem = ({ item }: { item: UserProfile }) => {
     const compatibilityScore = getCompatibilityScore(item);
+    const buttonConfig = getConnectionButtonConfig(item.id);
     
     return (
       <TouchableOpacity
@@ -256,10 +488,19 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
         </View>
         
         <TouchableOpacity
-          style={styles.connectButton}
+          style={[
+            styles.connectButton, 
+            { 
+              backgroundColor: buttonConfig.color,
+              opacity: buttonConfig.disabled ? 0.8 : 1.0
+            }
+          ]}
           onPress={() => handleConnect(item)}
+          disabled={buttonConfig.disabled}
         >
-          <Text style={styles.connectButtonText}>Connect</Text>
+          <Text style={[styles.connectButtonText, { color: buttonConfig.textColor }]}>
+            {buttonConfig.text}
+          </Text>
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -267,6 +508,7 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
 
   const renderSearchResultItem = ({ item }: { item: UserProfile }) => {
     const compatibilityScore = getCompatibilityScore(item);
+    const buttonConfig = getConnectionButtonConfig(item.id);
     
     return (
       <TouchableOpacity
@@ -288,10 +530,19 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
               </Text>
             </View>
             <TouchableOpacity
-              style={styles.connectButtonSmall}
+              style={[
+                styles.connectButtonSmall, 
+                { 
+                  backgroundColor: buttonConfig.color,
+                  opacity: buttonConfig.disabled ? 0.8 : 1.0
+                }
+              ]}
               onPress={() => handleConnect(item)}
+              disabled={buttonConfig.disabled}
             >
-              <Text style={styles.connectButtonSmallText}>Connect</Text>
+              <Text style={[styles.connectButtonSmallText, { color: buttonConfig.textColor }]}>
+                {buttonConfig.text}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -315,43 +566,17 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
   };
 
   const renderRequestItem = ({ item }: { item: ConnectionRequest }) => {
-    const handleAcceptRequest = async () => {
-      if (!user) return;
-      
-      try {
-        await ConnectionService.acceptConnectionRequest(item.id);
-        loadConnectionRequests(); // Refresh the list
-        Alert.alert('Success', `You are now connected with ${item.fromUser.name}!`);
-      } catch (error) {
-        console.error('Error accepting connection request:', error);
-        Alert.alert('Error', 'Failed to accept connection request. Please try again.');
-      }
-    };
-
-    const handleDeclineRequest = async () => {
-      if (!user) return;
-      
-      try {
-        await ConnectionService.declineConnectionRequest(item.id);
-        loadConnectionRequests(); // Refresh the list
-      } catch (error) {
-        console.error('Error declining connection request:', error);
-        Alert.alert('Error', 'Failed to decline connection request. Please try again.');
-      }
-    };
-
     return (
       <View style={styles.requestCard}>
         <View style={styles.requestHeader}>
-          <Text style={styles.requestName}>{item.fromUser.name}</Text>
+          <Text style={styles.requestName}>{item.fromUserName}</Text>
           <Text style={styles.requestTime}>
             {new Date(item.createdAt).toLocaleDateString()}
           </Text>
         </View>
         
-        <Text style={styles.requestLocation}>{item.fromUser.location}</Text>
         <Text style={styles.requestSkill}>
-          {item.fromUser.experience} level
+          Connection request from {item.fromUserName}
         </Text>
         
         {item.message && (
@@ -361,14 +586,14 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
         <View style={styles.requestActions}>
           <TouchableOpacity
             style={styles.declineButton}
-            onPress={handleDeclineRequest}
+            onPress={() => handleDeclineRequest(item.id, item.fromUserName)}
           >
             <Text style={styles.declineButtonText}>Decline</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
             style={styles.acceptButton}
-            onPress={handleAcceptRequest}
+            onPress={() => handleAcceptRequest(item.id, item.fromUserId, item.fromUserName)}
           >
             <Text style={styles.acceptButtonText}>Accept</Text>
           </TouchableOpacity>
@@ -428,6 +653,9 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={refreshData} />
+            }
           />
         ) : (
           <View style={styles.emptyState}>
@@ -460,6 +688,9 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
               keyExtractor={(item) => item.id}
               contentContainerStyle={styles.listContainer}
               showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={refreshData} />
+              }
             />
           ) : searching ? (
             <View style={styles.emptyState}>
@@ -497,6 +728,9 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={refreshData} />
+            }
           />
         ) : (
           <View style={styles.emptyState}>

@@ -74,9 +74,11 @@ interface MatchesScreenProps {
 export default function MatchesScreen({}: MatchesScreenProps) {
   const navigation = useNavigation<MatchesScreenNavigationProp>();
   const { user, userProfile } = useAuth();
-  const [selectedTab, setSelectedTab] = useState<'matches' | 'search' | 'requests'>('matches');
+  const [selectedTab, setSelectedTab] = useState<'matches' | 'search' | 'requests' | 'sent'>('matches');
   const [connectionRequests, setConnectionRequests] = useState<any[]>([]);
+  const [sentRequests, setSentRequests] = useState<any[]>([]);
   const [connectedUserIds, setConnectedUserIds] = useState<Set<string>>(new Set());
+  const [backendStatus, setBackendStatus] = useState<'supabase' | 'local' | 'checking'>('checking');
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -87,11 +89,20 @@ export default function MatchesScreen({}: MatchesScreenProps) {
   useEffect(() => {
     loadConnectionData();
     loadAllUsers();
+    checkBackendStatus();
   }, [user]);
 
   useEffect(() => {
     handleSearch(searchQuery);
   }, [allUsers]);
+
+  // Refresh data when switching to requests or sent tabs
+  useEffect(() => {
+    if (selectedTab === 'requests' || selectedTab === 'sent') {
+      console.log(`MatchesScreen: Switched to ${selectedTab} tab, refreshing data`);
+      loadConnectionData();
+    }
+  }, [selectedTab]);
 
   const loadAllUsers = async () => {
     if (!user) return;
@@ -124,9 +135,17 @@ export default function MatchesScreen({}: MatchesScreenProps) {
   const loadConnectionData = async () => {
     if (!user) return;
 
-    // Load connection requests for this user
+    console.log(`MatchesScreen: Loading connection data for user ${user.id}`);
+
+    // Load connection requests for this user (incoming)
     const requests = await ConnectionService.getConnectionRequestsForUser(user.id);
+    console.log(`MatchesScreen: Loaded ${requests.length} connection requests`);
     setConnectionRequests(requests);
+
+    // Load connection requests sent by this user (outgoing)
+    const sentRequestsData = await ConnectionService.getConnectionRequestsSentByUser(user.id);
+    console.log(`MatchesScreen: Loaded ${sentRequestsData.length} sent requests`);
+    setSentRequests(sentRequestsData);
 
     // Load existing connections to know which users we're already connected to
     const connections = await ConnectionService.getConnectionsForUser(user.id);
@@ -135,7 +154,25 @@ export default function MatchesScreen({}: MatchesScreenProps) {
         conn.userId1 === user.id ? conn.userId2 : conn.userId1
       )
     );
+    console.log(`MatchesScreen: User has ${connections.length} connections`);
     setConnectedUserIds(connectedIds);
+  };
+
+  const checkBackendStatus = async () => {
+    try {
+      const url = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://demo.supabase.co';
+      const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'demo-key';
+      
+      const isConfigured = url !== 'https://demo.supabase.co' && 
+                          key !== 'demo-key' && 
+                          url.includes('supabase.co') && 
+                          key.length > 20;
+      
+      setBackendStatus(isConfigured ? 'supabase' : 'local');
+    } catch (error) {
+      console.error('Error checking backend status:', error);
+      setBackendStatus('local');
+    }
   };
 
   const getScoreColor = (score: number) => {
@@ -570,6 +607,67 @@ export default function MatchesScreen({}: MatchesScreenProps) {
     </View>
   );
 
+  const renderSentRequestItem = ({ item }: { item: any }) => (
+    <View style={styles.requestCard}>
+      <View style={styles.requestHeader}>
+        <Text style={styles.requestName}>To: {item.toUserName}</Text>
+        <Text style={styles.requestTime}>
+          {new Date(item.createdAt).toLocaleDateString()}
+        </Text>
+      </View>
+      
+      <View style={styles.statusBadge}>
+        <Text style={styles.statusText}>
+          {item.status === 'pending' ? '⏳ Pending' : 
+           item.status === 'accepted' ? '✅ Accepted' : '❌ Declined'}
+        </Text>
+      </View>
+      
+      {item.message && (
+        <Text style={styles.requestMessage}>"{item.message}"</Text>
+      )}
+      
+      {item.status === 'pending' && (
+        <View style={styles.sentRequestActions}>
+          <TouchableOpacity 
+            style={styles.cancelRequestButton}
+            onPress={() => handleCancelSentRequest(item)}
+          >
+            <Text style={styles.cancelRequestButtonText}>Cancel Request</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+
+  const handleCancelSentRequest = async (request: any) => {
+    Alert.alert(
+      'Cancel Request',
+      `Cancel your connection request to ${request.toUserName}?`,
+      [
+        { text: 'Keep Request', style: 'cancel' },
+        {
+          text: 'Cancel Request',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const success = await ConnectionService.cancelConnectionRequest(request.id);
+              if (success) {
+                Alert.alert('Request Cancelled', 'Your connection request has been cancelled.');
+                loadConnectionData();
+              } else {
+                Alert.alert('Error', 'Failed to cancel request. Please try again.');
+              }
+            } catch (error) {
+              console.error('Error cancelling request:', error);
+              Alert.alert('Error', 'Failed to cancel request. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderSearchTab = () => (
     <View style={styles.searchContainer}>
       <View style={styles.searchHeader}>
@@ -581,13 +679,28 @@ export default function MatchesScreen({}: MatchesScreenProps) {
           clearButtonMode="while-editing"
         />
         <Text style={styles.searchResultsText}>
-          {searching ? 'Searching...' : `${searchResults.length} juggler${searchResults.length !== 1 ? 's' : ''} found`}
+          {searching ? 'Searching...' : 
+           searchQuery.trim() ? 
+             `${searchResults.length} juggler${searchResults.length !== 1 ? 's' : ''} found` :
+             `${allUsers.length} juggler${allUsers.length !== 1 ? 's' : ''} available`
+          }
         </Text>
+        {searchQuery.trim() && (
+          <TouchableOpacity 
+            style={[styles.refreshButton, { backgroundColor: '#8b5cf6', marginTop: 8 }]}
+            onPress={() => {
+              setSearchQuery('');
+              setSearchResults(allUsers);
+            }}
+          >
+            <Text style={styles.refreshButtonText}>Clear Search & Show All</Text>
+          </TouchableOpacity>
+        )}
       </View>
       
-      {searchResults.length > 0 ? (
+      {(searchResults.length > 0 || (!searchQuery.trim() && allUsers.length > 0)) ? (
         <FlatList
-          data={searchResults}
+          data={searchQuery.trim() ? searchResults : allUsers}
           renderItem={renderSearchResultItem}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
@@ -608,6 +721,99 @@ export default function MatchesScreen({}: MatchesScreenProps) {
           <Text style={styles.emptyStateText}>
             Enter a name above to search for specific jugglers you'd like to connect with.
           </Text>
+          
+          {/* Debug section for testing - Always show for debugging */}
+          <View style={styles.debugSection}>
+            <Text style={{ fontSize: 12, color: '#666', marginTop: 8 }}>
+              Backend: {backendStatus} | Users loaded: {allUsers.length}
+            </Text>
+            
+            <TouchableOpacity 
+              style={[styles.refreshButton, { backgroundColor: '#06b6d4', marginTop: 16 }]}
+              onPress={async () => {
+                if (!user) return;
+                try {
+                  console.log('🔍 Current user ID:', user.id);
+                  console.log('🔍 Backend status:', UserSearchService.getBackendStatus());
+                  const users = await UserSearchService.getAllUsers(user.id);
+                  console.log('🔍 All users in system:', users);
+                  console.log('🔍 Current allUsers state:', allUsers);
+                  Alert.alert(
+                    'Debug: All Users',
+                    `Found ${users.length} users in system:\n\n${users.map(u => `• ${u.name} (${u.email})`).join('\n')}\n\nBackend: ${UserSearchService.getBackendStatus()}\nCurrent user: ${user.id}`,
+                    [{ text: 'OK' }]
+                  );
+                  
+                  // Refresh the user list
+                  setAllUsers(users);
+                  setSearchResults(users);
+                } catch (error) {
+                  console.error('Error getting users:', error);
+                  Alert.alert('Error', 'Failed to get users: ' + String(error));
+                }
+              }}
+            >
+              <Text style={styles.refreshButtonText}>🔍 Debug: Show All Users</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.refreshButton, { backgroundColor: '#10b981', marginTop: 8 }]}
+              onPress={async () => {
+                const success = await UserSearchService.addTestUser('GRAHAM', 'graham@test.com', 'Intermediate');
+                if (success) {
+                  Alert.alert('Test User Added', 'GRAHAM has been added to the user list for testing');
+                  loadAllUsers(); // Refresh the user list
+                } else {
+                  Alert.alert('Error', 'Failed to add test user');
+                }
+              }}
+            >
+              <Text style={styles.refreshButtonText}>➕ Add Test User: GRAHAM</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.refreshButton, { backgroundColor: '#10b981', marginTop: 8 }]}
+              onPress={async () => {
+                const success = await UserSearchService.addTestUser('PTRKASEMAN', 'peter@test.com', 'Advanced');
+                if (success) {
+                  Alert.alert('Test User Added', 'PTRKASEMAN has been added to the user list for testing');
+                  loadAllUsers(); // Refresh the user list
+                } else {
+                  Alert.alert('Error', 'Failed to add test user');
+                }
+              }}
+            >
+              <Text style={styles.refreshButtonText}>➕ Add Test User: PTRKASEMAN</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.refreshButton, { backgroundColor: '#dc2626', marginTop: 8 }]}
+              onPress={async () => {
+                Alert.alert(
+                  'Clear All Users',
+                  'This will remove all stored users from local storage. Demo users will still appear if no real users are stored. Continue?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Clear',
+                      style: 'destructive',
+                      onPress: async () => {
+                        const success = await UserSearchService.clearAllUsers();
+                        if (success) {
+                          Alert.alert('Users Cleared', 'All stored users have been removed from local storage');
+                          loadAllUsers(); // Refresh the user list
+                        } else {
+                          Alert.alert('Error', 'Failed to clear users');
+                        }
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <Text style={styles.refreshButtonText}>🗑️ Clear All Stored Users</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
     </View>
@@ -638,9 +844,30 @@ export default function MatchesScreen({}: MatchesScreenProps) {
             onPress={() => setSelectedTab('requests')}
           >
             <Text style={[styles.tabText, selectedTab === 'requests' && styles.activeTabText]}>
-              Requests
+              Requests ({connectionRequests.length})
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, selectedTab === 'sent' && styles.activeTab]}
+            onPress={() => setSelectedTab('sent')}
+          >
+            <Text style={[styles.tabText, selectedTab === 'sent' && styles.activeTabText]}>
+              Sent ({sentRequests.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+        
+        {/* Backend Status Indicator */}
+        <View style={styles.backendStatusContainer}>
+          <View style={[
+            styles.backendStatusIndicator,
+            backendStatus === 'supabase' ? styles.supabaseStatus : styles.localStatus
+          ]}>
+            <Text style={styles.backendStatusText}>
+              {backendStatus === 'checking' ? '...' : 
+               backendStatus === 'supabase' ? '🟢 Supabase' : '🔴 Local Storage'}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -654,24 +881,144 @@ export default function MatchesScreen({}: MatchesScreenProps) {
         />
       ) : selectedTab === 'search' ? (
         renderSearchTab()
-      ) : (
-        connectionRequests.length > 0 ? (
-          <FlatList
-            data={connectionRequests}
-            renderItem={renderRequestItem}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContainer}
-            showsVerticalScrollIndicator={false}
-          />
-        ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateIcon}>📭</Text>
-            <Text style={styles.emptyStateTitle}>No Connection Requests</Text>
-            <Text style={styles.emptyStateText}>
-              When someone wants to connect with you, their requests will appear here.
-            </Text>
+      ) : selectedTab === 'requests' ? (
+        <View style={{ flex: 1 }}>
+          {/* Backend Status Info */}
+          {backendStatus === 'local' && (
+            <View style={styles.infoContainer}>
+              <Text style={styles.infoText}>
+                ℹ️ Using local storage. Connection requests only visible on this device. 
+                Set up Supabase in .env file for cross-device sync.
+              </Text>
+            </View>
+          )}
+          
+          {/* Refresh button for requests */}
+          <View style={styles.refreshContainer}>
+            <TouchableOpacity 
+              style={styles.refreshButton}
+              onPress={() => {
+                console.log('Manual refresh triggered');
+                loadConnectionData();
+              }}
+            >
+              <Text style={styles.refreshButtonText}>🔄 Refresh Requests</Text>
+            </TouchableOpacity>
+            
+            {/* Debug button to show all requests in system */}
+            <TouchableOpacity 
+              style={[styles.refreshButton, { backgroundColor: '#f59e0b', marginTop: 8 }]}
+              onPress={async () => {
+                await ConnectionService.getAllConnectionRequestsForDebugging();
+              }}
+            >
+              <Text style={styles.refreshButtonText}>🐛 Debug: Show All Requests</Text>
+            </TouchableOpacity>
+            
+            {/* Backend toggle button */}
+            <TouchableOpacity 
+              style={[styles.refreshButton, { backgroundColor: '#8b5cf6', marginTop: 8 }]}
+              onPress={() => {
+                const currentBackend = ConnectionService.getCurrentBackend();
+                const useSupabase = currentBackend === 'Local Storage';
+                ConnectionService.toggleBackend(useSupabase);
+                Alert.alert(
+                  'Backend Switched',
+                  `Now using: ${useSupabase ? 'Supabase (Real API)' : 'Local Storage (Testing)'}`,
+                  [{ text: 'OK' }]
+                );
+              }}
+            >
+              <Text style={styles.refreshButtonText}>
+                🔄 Backend: {ConnectionService.getCurrentBackend()}
+              </Text>
+            </TouchableOpacity>
+            
+            {/* Debug button to show all users */}
+            <TouchableOpacity 
+              style={[styles.refreshButton, { backgroundColor: '#06b6d4', marginTop: 8 }]}
+              onPress={async () => {
+                if (!user) return;
+                try {
+                  const users = await UserSearchService.getAllUsers(user.id);
+                  console.log('🔍 All users in system:', users);
+                  Alert.alert(
+                    'Debug: All Users',
+                    `Found ${users.length} users in system:\n\n${users.map(u => `• ${u.name} (${u.email})`).join('\n')}`,
+                    [{ text: 'OK' }]
+                  );
+                } catch (error) {
+                  console.error('Error getting users:', error);
+                  Alert.alert('Error', 'Failed to get users');
+                }
+              }}
+            >
+              <Text style={styles.refreshButtonText}>🔍 Debug: Show All Users</Text>
+            </TouchableOpacity>
           </View>
-        )
+          
+          {connectionRequests.length > 0 ? (
+            <FlatList
+              data={connectionRequests}
+              renderItem={renderRequestItem}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContainer}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>📭</Text>
+              <Text style={styles.emptyStateTitle}>No Connection Requests</Text>
+              <Text style={styles.emptyStateText}>
+                When someone wants to connect with you, their requests will appear here.
+              </Text>
+            </View>
+          )}
+        </View>
+      ) : (
+        // Sent requests tab
+        <View style={{ flex: 1 }}>
+          {/* Backend Status Info */}
+          {backendStatus === 'local' && (
+            <View style={styles.infoContainer}>
+              <Text style={styles.infoText}>
+                ℹ️ Using local storage. Sent requests only visible on this device. 
+                Set up Supabase in .env file for cross-device sync.
+              </Text>
+            </View>
+          )}
+          
+          {/* Refresh button for sent requests */}
+          <View style={styles.refreshContainer}>
+            <TouchableOpacity 
+              style={styles.refreshButton}
+              onPress={() => {
+                console.log('Refreshing sent requests');
+                loadConnectionData();
+              }}
+            >
+              <Text style={styles.refreshButtonText}>🔄 Refresh Sent Requests</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {sentRequests.length > 0 ? (
+            <FlatList
+              data={sentRequests}
+              renderItem={renderSentRequestItem}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContainer}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>📤</Text>
+              <Text style={styles.emptyStateTitle}>No Sent Requests</Text>
+              <Text style={styles.emptyStateText}>
+                Connection requests you send will appear here. You can track their status and see when they're accepted or declined.
+              </Text>
+            </View>
+          )}
+        </View>
       )}
     </SafeAreaView>
   );
@@ -970,5 +1317,111 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#ffffff',
     fontWeight: '500',
+  },
+  refreshContainer: {
+    padding: 16,
+    backgroundColor: '#f9fafb',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  refreshButton: {
+    backgroundColor: '#6366f1',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  refreshButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  statusBadge: {
+    padding: 8,
+    borderRadius: 12,
+    marginBottom: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#f3f4f6',
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  pendingBadge: {
+    backgroundColor: '#fff3cd',
+  },
+  acceptedBadge: {
+    backgroundColor: '#d1e7dd',
+  },
+  declinedBadge: {
+    backgroundColor: '#f8d7da',
+  },
+  pendingText: {
+    color: '#856404',
+  },
+  acceptedText: {
+    color: '#155724',
+  },
+  declinedText: {
+    color: '#721c24',
+  },
+  sentRequestActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  cancelRequestButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#ef4444',
+    marginLeft: 8,
+  },
+  cancelRequestButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  backendStatusContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  backendStatusIndicator: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  supabaseStatus: {
+    backgroundColor: '#dcfce7',
+    borderColor: '#16a34a',
+  },
+  localStatus: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#dc2626',
+  },
+  backendStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  infoContainer: {
+    margin: 16,
+    padding: 12,
+    backgroundColor: '#f0f9ff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#0ea5e9',
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#0f172a',
+    lineHeight: 20,
+  },
+  debugSection: {
+    width: '100%',
+    alignItems: 'center',
   },
 });
