@@ -2,10 +2,6 @@
 
 A cross-platform mobile app built with React Native and Expo that helps jugglers find compatible partners for passing patterns.
 
-# PatternPals 🤹‍♂️
-
-A cross-platform mobile app built with React Native and Expo that helps jugglers find compatible partners for passing patterns.
-
 ## 🎯 Features
 
 ### ✅ **Fully Implemented & Working**
@@ -46,10 +42,14 @@ A cross-platform mobile app built with React Native and Expo that helps jugglers
 
 ### **Ready to Run Immediately!**
 
-1. **Install dependencies**: `npm install`
-2. **Start development server**: `npm start`
-3. **Scan QR code** with Expo Go app on your phone
-4. **Start juggling!** All features are fully functional
+1. **Clone repository**: `git clone [repository-url] && cd pattern-pals`
+2. **Install dependencies**: `npm install`
+3. **Setup environment**: `cp .env.example .env` (optional - app works with mock data)
+4. **Start development server**: `npm start`
+5. **Scan QR code** with Expo Go app on your phone
+6. **Start juggling!** All features are fully functional
+
+> **🔒 Security Note**: Real credentials are gitignored. See `SECURITY.md` for setup details.
 
 ### **What Works Out of the Box:**
 

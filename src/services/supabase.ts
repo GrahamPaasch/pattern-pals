@@ -3,9 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 
 // Replace these with your actual Supabase project credentials
-// For now using placeholder values - the app will work with mock auth
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://demo.supabase.co';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'demo-key';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+// Check if we have valid Supabase credentials
+const hasValidSupabaseConfig = SUPABASE_URL && 
+  SUPABASE_ANON_KEY && 
+  SUPABASE_URL !== 'https://demo.supabase.co' &&
+  SUPABASE_URL !== 'your-project-url-here' &&
+  SUPABASE_ANON_KEY !== 'demo-key' &&
+  SUPABASE_ANON_KEY !== 'your-anon-key-here' &&
+  SUPABASE_URL.includes('supabase.co');
 
 // Custom storage implementation for React Native
 const ExpoSecureStoreAdapter = {
@@ -20,14 +28,20 @@ const ExpoSecureStoreAdapter = {
   },
 };
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    storage: ExpoSecureStoreAdapter,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
-});
+// Create Supabase client only if we have valid configuration
+export const supabase = hasValidSupabaseConfig 
+  ? createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
+      auth: {
+        storage: ExpoSecureStoreAdapter,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+      },
+    })
+  : null;
+
+// Export a function to check if Supabase is configured
+export const isSupabaseConfigured = () => hasValidSupabaseConfig;
 
 export type Database = {
   public: {

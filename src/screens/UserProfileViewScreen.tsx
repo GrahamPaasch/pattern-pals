@@ -9,6 +9,8 @@ import {
   Alert,
 } from 'react-native';
 import { patterns } from '../data/patterns';
+import { ConnectionService } from '../services';
+import { useAuth } from '../hooks/useAuth';
 
 interface UserProfileViewProps {
   route: {
@@ -30,6 +32,7 @@ interface UserProfileViewProps {
 export default function UserProfileViewScreen({ route, navigation }: UserProfileViewProps) {
   const { userId, name, experience, score, sharedPatterns, canTeach, canLearn, distance, lastActive } = route.params;
   const [connectionSent, setConnectionSent] = useState(false);
+  const { user, userProfile } = useAuth();
 
   console.log('UserProfileViewScreen rendered for user:', name);
   console.log('Route params:', route.params);
@@ -53,7 +56,19 @@ export default function UserProfileViewScreen({ route, navigation }: UserProfile
     return '#6b7280';
   };
 
-  const handleConnect = () => {
+  const handleConnect = async () => {
+    if (!user || !userProfile) {
+      Alert.alert('Error', 'You must be logged in to send connection requests.');
+      return;
+    }
+
+    // Check if request already sent
+    const hasPending = await ConnectionService.hasPendingRequest(user.id, userId);
+    if (hasPending) {
+      Alert.alert('Request Already Sent', `You've already sent a connection request to ${name}.`);
+      return;
+    }
+
     Alert.alert(
       'Send Connection Request',
       `Would you like to send a connection request to ${name}?`,
@@ -61,13 +76,37 @@ export default function UserProfileViewScreen({ route, navigation }: UserProfile
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Send Request',
-          onPress: () => {
-            setConnectionSent(true);
-            Alert.alert(
-              'Request Sent!',
-              `Your connection request has been sent to ${name}. They will be notified and can accept or decline your request.`,
-              [{ text: 'OK' }]
-            );
+          onPress: async () => {
+            try {
+              const success = await ConnectionService.sendConnectionRequest(
+                user.id,
+                userId,
+                userProfile.name,
+                name
+              );
+
+              if (success) {
+                setConnectionSent(true);
+                Alert.alert(
+                  'Request Sent!',
+                  `Your connection request has been sent to ${name}. They will be notified and can accept or decline your request.`,
+                  [{ text: 'OK' }]
+                );
+              } else {
+                Alert.alert(
+                  'Error',
+                  'Failed to send connection request. Please try again.',
+                  [{ text: 'OK' }]
+                );
+              }
+            } catch (error) {
+              console.error('Error sending connection request:', error);
+              Alert.alert(
+                'Error',
+                'Failed to send connection request. Please try again.',
+                [{ text: 'OK' }]
+              );
+            }
           },
         },
       ]

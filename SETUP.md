@@ -82,12 +82,39 @@ CREATE TABLE notifications (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Connection requests table
+CREATE TABLE connection_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  from_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  to_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  from_user_name TEXT NOT NULL,
+  to_user_name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+  message TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(from_user_id, to_user_id)
+);
+
+-- Connections table
+CREATE TABLE connections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user1_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  user2_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  user1_name TEXT NOT NULL,
+  user2_name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'blocked')),
+  connected_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Enable Row Level Security
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_patterns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE connection_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE connections ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
 CREATE POLICY "Users can view their own profile" ON users FOR SELECT USING (auth.uid() = id);
@@ -101,6 +128,10 @@ CREATE POLICY "Users can view matches involving them" ON matches FOR SELECT USIN
 CREATE POLICY "Users can view sessions they're involved in" ON sessions FOR SELECT USING (auth.uid() = host_id OR auth.uid() = ANY(participant_ids));
 
 CREATE POLICY "Users can view their own notifications" ON notifications FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage connection requests" ON connection_requests FOR ALL USING (auth.uid() = from_user_id OR auth.uid() = to_user_id);
+
+CREATE POLICY "Users can view their own connections" ON connections FOR SELECT USING (auth.uid() = user1_id OR auth.uid() = user2_id);
 ```
 
 ### 3. Update Supabase Configuration

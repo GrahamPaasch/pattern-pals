@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '../services';
+import { supabase, UserSearchService } from '../services';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { User } from '../types';
 
@@ -75,6 +75,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      if (!supabase) {
+        throw new Error('Supabase not initialized');
+      }
+
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -118,9 +122,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, userData: Partial<User>) => {
     setLoading(true);
     try {
-      // For development, create a mock user
+      // For development, create a mock user with proper UUID format
+      const generateUUID = () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c == 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      };
+      
       const newMockUser = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: generateUUID(),
         email,
         aud: 'authenticated',
         created_at: new Date().toISOString(),
@@ -148,6 +160,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await AsyncStorage.setItem('mock_user', JSON.stringify(newMockUser));
       await AsyncStorage.setItem('mock_profile', JSON.stringify(profile));
       
+      // Add user to searchable user list
+      const searchableUser = {
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        avatar: profile.avatar,
+        experience: profile.experience,
+        preferredProps: profile.preferredProps,
+        location: '', // Can be added later in profile edit
+        lastActive: 'Just now',
+        bio: '', // Can be added later in profile edit
+        knownPatterns: profile.knownPatterns,
+        wantToLearnPatterns: profile.wantToLearnPatterns,
+      };
+      
+      const addedToSearch = await UserSearchService.addOrUpdateUser(searchableUser);
+      console.log(`Auth: Added user to search service: ${addedToSearch}`);
+      
       setUser(newMockUser);
       setUserProfile(profile);
     } catch (error) {
@@ -170,19 +200,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const profileData = JSON.parse(existingProfile);
         
         if (userData.email === email) {
-          setUser(userData);
-          setUserProfile({
+          const profile = {
             ...profileData,
             createdAt: new Date(profileData.createdAt),
             updatedAt: new Date(profileData.updatedAt),
-          });
+          };
+          
+          setUser(userData);
+          setUserProfile(profile);
+          
+          // Update user in searchable list (in case they weren't there before)
+          const searchableUser = {
+            id: profile.id,
+            name: profile.name,
+            email: profile.email,
+            avatar: profile.avatar,
+            experience: profile.experience,
+            preferredProps: profile.preferredProps,
+            location: '',
+            lastActive: 'Just now',
+            bio: '',
+            knownPatterns: profile.knownPatterns,
+            wantToLearnPatterns: profile.wantToLearnPatterns,
+          };
+          
+          const addedToSearch = await UserSearchService.addOrUpdateUser(searchableUser);
+          console.log(`Auth: Updated existing user in search service: ${addedToSearch}`);
+          
           return;
         }
       }
       
       // If no stored user, create a demo user for this email
+      const generateUUID = () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          const r = Math.random() * 16 | 0;
+          const v = c == 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      };
+      
       const demoUser = {
-        id: 'demo-' + Math.random().toString(36).substr(2, 9),
+        id: generateUUID(),
         email,
         aud: 'authenticated',
         created_at: new Date().toISOString(),
@@ -210,6 +269,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       await AsyncStorage.setItem('mock_user', JSON.stringify(demoUser));
       await AsyncStorage.setItem('mock_profile', JSON.stringify(demoProfile));
+      
+      // Add demo user to searchable user list
+      const searchableUser = {
+        id: demoProfile.id,
+        name: demoProfile.name,
+        email: demoProfile.email,
+        avatar: demoProfile.avatar,
+        experience: demoProfile.experience,
+        preferredProps: demoProfile.preferredProps,
+        location: '',
+        lastActive: 'Just now',
+        bio: '',
+        knownPatterns: demoProfile.knownPatterns,
+        wantToLearnPatterns: demoProfile.wantToLearnPatterns,
+      };
+      
+      const addedToSearch = await UserSearchService.addOrUpdateUser(searchableUser);
+      console.log(`Auth: Added demo user to search service: ${addedToSearch}`);
       
       setUser(demoUser);
       setUserProfile(demoProfile);
@@ -251,6 +328,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       await AsyncStorage.setItem('mock_profile', JSON.stringify(updatedProfile));
       setUserProfile(updatedProfile);
+      
+      // Update in searchable user list
+      const searchableUser = {
+        id: updatedProfile.id,
+        name: updatedProfile.name,
+        email: updatedProfile.email,
+        avatar: updatedProfile.avatar,
+        experience: updatedProfile.experience,
+        preferredProps: updatedProfile.preferredProps,
+        location: '', // Can be added later when User type supports it
+        lastActive: 'Just now',
+        bio: '', // Can be added later when User type supports it
+        knownPatterns: updatedProfile.knownPatterns,
+        wantToLearnPatterns: updatedProfile.wantToLearnPatterns,
+      };
+      
+      const addedToSearch = await UserSearchService.addOrUpdateUser(searchableUser);
+      console.log(`Auth: Updated user in search service: ${addedToSearch}`);
     } catch (error) {
       console.error('Error updating profile:', error);
       throw error;
