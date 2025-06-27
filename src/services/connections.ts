@@ -1,6 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { SyncService } from './sync';
+import { ErrorService, ErrorType, ErrorSeverity } from './errorService';
+import { PerformanceService } from './performanceService';
+import { ValidationService } from './validationService';
+import { CacheService, CacheKeys } from './cacheService';
 
 export interface ConnectionRequest {
   id: string;
@@ -37,7 +41,7 @@ export class ConnectionService {
   }
 
   /**
-   * Send a connection request (with Supabase support)
+   * Send a connection request (with enhanced error handling and performance tracking)
    */
   static async sendConnectionRequest(
     fromUserId: string,
@@ -46,7 +50,37 @@ export class ConnectionService {
     toUserName: string,
     message?: string
   ): Promise<boolean> {
+    const metricId = PerformanceService.startMetric('send_connection_request', 'api', {
+      fromUserId,
+      toUserId,
+      hasMessage: !!message
+    });
+
     try {
+      // Validate input data
+      const validation = ValidationService.validateWithRules({
+        fromUserId,
+        toUserId,
+        fromUserName,
+        toUserName
+      }, [
+        { field: 'fromUserId', required: true, minLength: 1 },
+        { field: 'toUserId', required: true, minLength: 1 },
+        { field: 'fromUserName', required: true, minLength: 2, maxLength: 50 },
+        { field: 'toUserName', required: true, minLength: 2, maxLength: 50 }
+      ]);
+
+      if (!validation.isValid) {
+        const error = new Error(`Validation failed: ${validation.errors.join(', ')}`);
+        ErrorService.logError(error, ErrorType.VALIDATION, ErrorSeverity.MEDIUM, {
+          fromUserId,
+          toUserId,
+          validationErrors: validation.errors
+        });
+        PerformanceService.endMetric(metricId, { success: false, error: 'validation_failed' });
+        return false;
+      }
+
       console.log(`ConnectionService: Sending request from ${fromUserName} (${fromUserId}) to ${toUserName} (${toUserId})`);
       
       if (this.USE_SUPABASE && this.isSupabaseConfigured() && supabase) {
@@ -58,7 +92,9 @@ export class ConnectionService {
         
         if (!isValidUUID(fromUserId) || !isValidUUID(toUserId)) {
           console.log('ConnectionService: Invalid UUID format, falling back to local storage');
-          return this.sendConnectionRequestLocal(fromUserId, toUserId, fromUserName, toUserName, message);
+          const result = await this.sendConnectionRequestLocal(fromUserId, toUserId, fromUserName, toUserName, message);
+          PerformanceService.endMetric(metricId, { success: result, backend: 'local', reason: 'invalid_uuid' });
+          return result;
         }
         
         // Use Supabase for real backend
@@ -76,22 +112,50 @@ export class ConnectionService {
           .single();
 
         if (error) {
-          console.error('Supabase error sending connection request:', error);
+          ErrorService.logError(error, ErrorType.DATABASE, ErrorSeverity.MEDIUM, {
+            fromUserId,
+            toUserId,
+            supabaseError: error.message
+          });
           console.log('ConnectionService: Falling back to local storage due to Supabase error');
-          return this.sendConnectionRequestLocal(fromUserId, toUserId, fromUserName, toUserName, message);
+          const result = await this.sendConnectionRequestLocal(fromUserId, toUserId, fromUserName, toUserName, message);
+          PerformanceService.endMetric(metricId, { success: result, backend: 'local', reason: 'supabase_error' });
+          return result;
         }
 
+        // Invalidate cache for connection requests
+        await CacheService.invalidatePattern(`connection_requests_${toUserId}`);
+        
         console.log('ConnectionService: Successfully sent request via Supabase');
+        PerformanceService.endMetric(metricId, { success: true, backend: 'supabase' });
         return true;
       } else {
         // Fallback to AsyncStorage for development/testing
         console.log('ConnectionService: Using local storage (Supabase not configured or disabled)');
-        return this.sendConnectionRequestLocal(fromUserId, toUserId, fromUserName, toUserName, message);
+        const result = await this.sendConnectionRequestLocal(fromUserId, toUserId, fromUserName, toUserName, message);
+        PerformanceService.endMetric(metricId, { success: result, backend: 'local' });
+        return result;
       }
     } catch (error) {
-      console.error('Error sending connection request:', error);
+      ErrorService.logError(error instanceof Error ? error : new Error(String(error)), ErrorType.UNKNOWN, ErrorSeverity.HIGH, {
+        fromUserId,
+        toUserId,
+        operation: 'sendConnectionRequest'
+      });
       console.log('ConnectionService: Falling back to local storage due to error');
-      return this.sendConnectionRequestLocal(fromUserId, toUserId, fromUserName, toUserName, message);
+      try {
+        const result = await this.sendConnectionRequestLocal(fromUserId, toUserId, fromUserName, toUserName, message);
+        PerformanceService.endMetric(metricId, { success: result, backend: 'local', reason: 'exception_fallback' });
+        return result;
+      } catch (fallbackError) {
+        ErrorService.logError(fallbackError instanceof Error ? fallbackError : new Error(String(fallbackError)), ErrorType.UNKNOWN, ErrorSeverity.CRITICAL, {
+          fromUserId,
+          toUserId,
+          operation: 'sendConnectionRequestLocal_fallback'
+        });
+        PerformanceService.endMetric(metricId, { success: false, error: 'complete_failure' });
+        return false;
+      }
     }
   }
 

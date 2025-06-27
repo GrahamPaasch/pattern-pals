@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { patterns } from '../data/patterns';
+import { patterns, enhancedPatternSearch, EnhancedPatternResult } from '../data/patterns';
 import { PatternLibraryService } from '../services';
 import { Pattern, PatternStatus } from '../types';
 import { useUserPatterns } from '../hooks/useUserPatterns';
@@ -63,12 +63,42 @@ export default function PatternsScreen() {
     let filtered = base;
 
     if (query.trim()) {
-      const q = query.toLowerCase();
-      filtered = allPatterns.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q) ||
-        p.tags.some(t => t.toLowerCase().includes(q))
-      );
+      // Use enhanced semantic search
+      const enhancedResults = enhancedPatternSearch(query, {
+        fuzzyMatch: true,
+        includePrerequisites: true,
+        includeSimilar: true,
+        maxResults: 50,
+        sortBy: 'relevance'
+      });
+      
+      // Convert enhanced results back to Pattern format
+      filtered = enhancedResults.map((result: EnhancedPatternResult) => ({
+        id: result.id,
+        name: result.name,
+        difficulty: result.difficulty,
+        requiredJugglers: result.requiredJugglers,
+        props: result.props,
+        description: result.description,
+        tags: result.tags,
+        source: result.source,
+        prerequisites: result.prerequisites,
+        timing: result.timing,
+        numberOfProps: result.numberOfProps,
+        period: result.period,
+        squeezes: result.squeezes,
+        isPublic: result.isPublic,
+        createdBy: result.createdBy,
+        communityRating: result.communityRating,
+        ratingCount: result.ratingCount,
+        lastModified: result.lastModified,
+        siteswap: result.siteswap,
+        wordDescriptions: result.wordDescriptions,
+        isGroundState: result.isGroundState,
+        orbits: result.orbits,
+        handOrder: result.handOrder,
+        videoUrl: result.videoUrl
+      }));
     }
 
     if (difficulty !== 'All') {

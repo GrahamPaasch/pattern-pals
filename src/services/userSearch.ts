@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, isSupabaseConfigured } from './supabase';
+// Import patterns for semantic understanding
+import { patterns, getPatternById } from '../data/patterns';
 
 export interface UserProfile {
   id: string;
@@ -13,6 +15,24 @@ export interface UserProfile {
   bio?: string;
   knownPatterns: string[];
   wantToLearnPatterns: string[];
+}
+
+// Add new interfaces for enhanced search
+export interface SearchOptions {
+  fuzzyMatch?: boolean;
+  includePatterns?: boolean;
+  includeBio?: boolean;
+  includeLocation?: boolean;
+  maxDistance?: number;
+  experienceRange?: ('Beginner' | 'Intermediate' | 'Advanced')[];
+}
+
+export interface EnhancedSearchResult extends UserProfile {
+  searchScore: number;
+  matchedFields: string[];
+  teachingOpportunities: string[];
+  learningOpportunities: string[];
+  sharedPatterns: string[];
 }
 
 export class UserSearchService {
@@ -290,6 +310,362 @@ export class UserSearchService {
 
     // Cap the score at 100
     return Math.min(score, 100);
+  }
+
+  /**
+   * Enhanced semantic search with fuzzy matching and multi-field support
+   */
+  static async enhancedSearch(
+    query: string, 
+    currentUserId: string, 
+    options: SearchOptions = {}
+  ): Promise<EnhancedSearchResult[]> {
+    try {
+      const {
+        fuzzyMatch = true,
+        includePatterns = true,
+        includeBio = true,
+        includeLocation = true,
+        maxDistance = 0.6,
+        experienceRange = ['Beginner', 'Intermediate', 'Advanced']
+      } = options;
+
+      const allUsers = await this.getAllUsers(currentUserId);
+      const currentUser = await this.getCurrentUserProfile(currentUserId);
+      
+      if (!query.trim()) {
+        return this.convertToEnhancedResults(allUsers, currentUser);
+      }
+
+      const results: EnhancedSearchResult[] = [];
+      const queryLower = query.toLowerCase().trim();
+      const queryWords = queryLower.split(/\s+/);
+
+      for (const user of allUsers) {
+        if (!experienceRange.includes(user.experience)) continue;
+
+        let searchScore = 0;
+        const matchedFields: string[] = [];
+        
+        // Name matching (highest weight)
+        const nameScore = this.calculateFieldScore(user.name, queryWords, fuzzyMatch, maxDistance);
+        if (nameScore > 0) {
+          searchScore += nameScore * 3;
+          matchedFields.push('name');
+        }
+
+        // Email matching
+        const emailScore = this.calculateFieldScore(user.email, queryWords, fuzzyMatch, maxDistance);
+        if (emailScore > 0) {
+          searchScore += emailScore * 2;
+          matchedFields.push('email');
+        }
+
+        // Bio matching
+        if (includeBio && user.bio) {
+          const bioScore = this.calculateFieldScore(user.bio, queryWords, fuzzyMatch, maxDistance);
+          if (bioScore > 0) {
+            searchScore += bioScore * 1.5;
+            matchedFields.push('bio');
+          }
+        }
+
+        // Location matching
+        if (includeLocation && user.location) {
+          const locationScore = this.calculateFieldScore(user.location, queryWords, fuzzyMatch, maxDistance);
+          if (locationScore > 0) {
+            searchScore += locationScore * 1.2;
+            matchedFields.push('location');
+          }
+        }
+
+        // Pattern matching
+        if (includePatterns) {
+          const patternScore = this.calculatePatternMatchingScore(user, queryWords, fuzzyMatch, maxDistance);
+          if (patternScore > 0) {
+            searchScore += patternScore;
+            matchedFields.push('patterns');
+          }
+        }
+
+        if (searchScore > 0) {
+          const compatibility = this.calculateEnhancedCompatibilityScore(currentUser, user);
+          const teachingOps = this.findTeachingOpportunities(currentUser, user);
+          const learningOps = this.findLearningOpportunities(currentUser, user);
+          const sharedPatterns = this.findSharedPatterns(currentUser, user);
+
+          results.push({
+            ...user,
+            searchScore: searchScore + (compatibility * 0.1), // Slight compatibility boost
+            matchedFields,
+            teachingOpportunities: teachingOps,
+            learningOpportunities: learningOps,
+            sharedPatterns
+          });
+        }
+      }
+
+      // Sort by search relevance then compatibility
+      return results.sort((a, b) => b.searchScore - a.searchScore);
+    } catch (error) {
+      console.error('Error in enhanced search:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Calculate field matching score with fuzzy matching support
+   */
+  private static calculateFieldScore(
+    fieldValue: string, 
+    queryWords: string[], 
+    fuzzyMatch: boolean, 
+    maxDistance: number
+  ): number {
+    if (!fieldValue) return 0;
+
+    const fieldLower = fieldValue.toLowerCase();
+    let score = 0;
+
+    for (const word of queryWords) {
+      if (fieldLower.includes(word)) {
+        // Exact substring match gets full score
+        score += 1;
+      } else if (fuzzyMatch) {
+        // Fuzzy matching for typos and variations
+        const fuzzyScore = this.calculateFuzzyMatch(fieldLower, word, maxDistance);
+        score += fuzzyScore;
+      }
+    }
+
+    return score / queryWords.length; // Normalize by number of query words
+  }
+
+  /**
+   * Calculate pattern matching score with semantic understanding
+   */
+  private static calculatePatternMatchingScore(
+    user: UserProfile, 
+    queryWords: string[], 
+    fuzzyMatch: boolean, 
+    maxDistance: number
+  ): number {
+    let score = 0;
+    const allUserPatterns = [...user.knownPatterns, ...user.wantToLearnPatterns];
+
+    for (const patternName of allUserPatterns) {
+      const patternScore = this.calculateFieldScore(patternName, queryWords, fuzzyMatch, maxDistance);
+      if (patternScore > 0) {
+        // Boost score for known patterns vs want-to-learn
+        const isKnown = user.knownPatterns.includes(patternName);
+        score += patternScore * (isKnown ? 1.5 : 1.0);
+      }
+
+      // Check pattern metadata for semantic matches
+      const pattern = patterns.find(p => p.name === patternName);
+      if (pattern) {
+        // Match against tags
+        for (const tag of pattern.tags) {
+          const tagScore = this.calculateFieldScore(tag, queryWords, fuzzyMatch, maxDistance);
+          score += tagScore * 0.5;
+        }
+
+        // Match against description
+        const descScore = this.calculateFieldScore(pattern.description, queryWords, fuzzyMatch, maxDistance);
+        score += descScore * 0.3;
+      }
+    }
+
+    return score;
+  }
+
+  /**
+   * Simple fuzzy matching using Levenshtein distance
+   */
+  private static calculateFuzzyMatch(text: string, word: string, maxDistance: number): number {
+    // Check if word appears anywhere in text with some tolerance
+    const words = text.split(/\s+/);
+    let bestScore = 0;
+
+    for (const textWord of words) {
+      const distance = this.levenshteinDistance(textWord, word);
+      const maxLen = Math.max(textWord.length, word.length);
+      const similarity = 1 - (distance / maxLen);
+      
+      if (similarity >= maxDistance) {
+        bestScore = Math.max(bestScore, similarity);
+      }
+    }
+
+    return bestScore;
+  }
+
+  /**
+   * Calculate Levenshtein distance for fuzzy matching
+   */
+  private static levenshteinDistance(str1: string, str2: string): number {
+    const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+
+    for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+    for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+
+    for (let j = 1; j <= str2.length; j++) {
+      for (let i = 1; i <= str1.length; i++) {
+        const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+        matrix[j][i] = Math.min(
+          matrix[j][i - 1] + 1,     // deletion
+          matrix[j - 1][i] + 1,     // insertion
+          matrix[j - 1][i - 1] + indicator // substitution
+        );
+      }
+    }
+
+    return matrix[str2.length][str1.length];
+  }
+
+  /**
+   * Enhanced compatibility scoring with pattern relationship awareness
+   */
+  private static calculateEnhancedCompatibilityScore(user1: UserProfile | null, user2: UserProfile): number {
+    if (!user1) return 0;
+
+    const user1Known = new Set(user1.knownPatterns);
+    const user1WantToLearn = new Set(user1.wantToLearnPatterns);
+    const user2Known = new Set(user2.knownPatterns);
+    const user2WantToLearn = new Set(user2.wantToLearnPatterns);
+
+    let score = 0;
+
+    // Shared patterns (practicing together)
+    const sharedKnown = [...user1Known].filter(pattern => user2Known.has(pattern));
+    score += sharedKnown.length * 20; // Higher weight for shared patterns
+
+    // Teaching opportunities with difficulty progression awareness
+    const user1CanTeach = [...user1Known].filter(pattern => user2WantToLearn.has(pattern));
+    const user2CanTeach = [...user2Known].filter(pattern => user1WantToLearn.has(pattern));
+    
+    // Weight teaching opportunities by pattern difficulty and prerequisites
+    for (const patternName of user1CanTeach) {
+      const pattern = patterns.find(p => p.name === patternName);
+      const weight = this.getPatternTeachingWeight(pattern);
+      score += 15 * weight;
+    }
+
+    for (const patternName of user2CanTeach) {
+      const pattern = patterns.find(p => p.name === patternName);
+      const weight = this.getPatternTeachingWeight(pattern);
+      score += 15 * weight;
+    }
+
+    // Experience level synergy
+    const experienceLevels = ['Beginner', 'Intermediate', 'Advanced'];
+    const user1Level = experienceLevels.indexOf(user1.experience);
+    const user2Level = experienceLevels.indexOf(user2.experience);
+    const levelDiff = Math.abs(user1Level - user2Level);
+    
+    if (levelDiff === 0) score += 25; // Same level - great for peer learning
+    else if (levelDiff === 1) score += 15; // One level apart - good mentor/student dynamic
+    else score += 5; // Two levels apart - still valuable but less ideal
+
+    // Prop compatibility bonus
+    const user1Props = new Set(user1.preferredProps || []);
+    const user2Props = new Set(user2.preferredProps || []);
+    const sharedProps = [...user1Props].filter(prop => user2Props.has(prop));
+    score += sharedProps.length * 10;
+
+    return Math.min(score, 100);
+  }
+
+  /**
+   * Calculate teaching weight based on pattern complexity and prerequisites
+   */
+  private static getPatternTeachingWeight(pattern: any): number {
+    if (!pattern) return 1;
+
+    let weight = 1;
+
+    // More complex patterns are more valuable to teach
+    switch (pattern.difficulty) {
+      case 'Advanced': weight *= 1.5; break;
+      case 'Intermediate': weight *= 1.2; break;
+      case 'Beginner': weight *= 1.0; break;
+    }
+
+    // Patterns with prerequisites are more valuable
+    if (pattern.prerequisites && pattern.prerequisites.length > 0) {
+      weight *= 1.3;
+    }
+
+    // Popular/highly rated patterns are more valuable
+    if (pattern.communityRating && pattern.communityRating >= 4.0) {
+      weight *= 1.2;
+    }
+
+    return weight;
+  }
+
+  /**
+   * Find teaching opportunities between users
+   */
+  private static findTeachingOpportunities(user1: UserProfile | null, user2: UserProfile): string[] {
+    if (!user1) return [];
+    
+    const user1Known = new Set(user1.knownPatterns);
+    const user2WantToLearn = new Set(user2.wantToLearnPatterns);
+    
+    return [...user1Known].filter(pattern => user2WantToLearn.has(pattern));
+  }
+
+  /**
+   * Find learning opportunities between users
+   */
+  private static findLearningOpportunities(user1: UserProfile | null, user2: UserProfile): string[] {
+    if (!user1) return [];
+    
+    const user1WantToLearn = new Set(user1.wantToLearnPatterns);
+    const user2Known = new Set(user2.knownPatterns);
+    
+    return [...user2Known].filter(pattern => user1WantToLearn.has(pattern));
+  }
+
+  /**
+   * Find shared patterns between users
+   */
+  private static findSharedPatterns(user1: UserProfile | null, user2: UserProfile): string[] {
+    if (!user1) return [];
+    
+    const user1Known = new Set(user1.knownPatterns);
+    const user2Known = new Set(user2.knownPatterns);
+    
+    return [...user1Known].filter(pattern => user2Known.has(pattern));
+  }
+
+  /**
+   * Convert regular user profiles to enhanced search results
+   */
+  private static convertToEnhancedResults(users: UserProfile[], currentUser: UserProfile | null): EnhancedSearchResult[] {
+    return users.map(user => ({
+      ...user,
+      searchScore: 0,
+      matchedFields: [],
+      teachingOpportunities: this.findTeachingOpportunities(currentUser, user),
+      learningOpportunities: this.findLearningOpportunities(currentUser, user),
+      sharedPatterns: this.findSharedPatterns(currentUser, user)
+    }));
+  }
+
+  /**
+   * Get current user profile for comparison
+   */
+  private static async getCurrentUserProfile(userId: string): Promise<UserProfile | null> {
+    try {
+      // This would typically fetch from your auth/profile service
+      const allUsers = await this.getAllUsers('');
+      return allUsers.find(user => user.id === userId) || null;
+    } catch (error) {
+      console.error('Error getting current user profile:', error);
+      return null;
+    }
   }
 
   /**

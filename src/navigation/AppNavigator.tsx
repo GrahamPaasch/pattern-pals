@@ -26,6 +26,7 @@ import SupportChatScreen from '../screens/SupportChatScreen';
 import PatternContributionScreen from '../screens/PatternContributionScreen';
 import UserProfileViewScreen from '../screens/UserProfileViewScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
+import DebugScreen from '../screens/DebugScreen';
 
 export type RootStackParamList = {
   Onboarding: undefined;
@@ -94,6 +95,9 @@ function MainTabs() {
               break;
             case 'Profile':
               iconName = focused ? 'person' : 'person-outline';
+              break;
+            case 'Debug':
+              iconName = focused ? 'bug' : 'bug-outline';
               break;
             default:
               iconName = 'help-outline';

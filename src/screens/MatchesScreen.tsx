@@ -248,11 +248,41 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
 
     try {
       setSearching(true);
-      const results = await UserSearchService.searchUsersByName(query, user.id);
+      // Use enhanced search with semantic matching
+      const enhancedResults = await UserSearchService.enhancedSearch(query, user.id, {
+        fuzzyMatch: true,
+        includePatterns: true,
+        includeBio: true,
+        includeLocation: true,
+        maxDistance: 0.6
+      });
+      
+      // Convert enhanced results back to UserProfile format for compatibility
+      const results: UserProfile[] = enhancedResults.map(result => ({
+        id: result.id,
+        name: result.name,
+        email: result.email,
+        avatar: result.avatar,
+        experience: result.experience,
+        preferredProps: result.preferredProps,
+        location: result.location,
+        lastActive: result.lastActive,
+        bio: result.bio,
+        knownPatterns: result.knownPatterns,
+        wantToLearnPatterns: result.wantToLearnPatterns
+      }));
+      
       setSearchResults(results);
     } catch (error) {
-      console.error('Error searching users:', error);
-      Alert.alert('Error', 'Failed to search users. Please try again.');
+      console.error('Error in enhanced search:', error);
+      // Fallback to basic search if enhanced search fails
+      try {
+        const basicResults = await UserSearchService.searchUsersByName(query, user.id);
+        setSearchResults(basicResults);
+      } catch (fallbackError) {
+        console.error('Error in fallback search:', fallbackError);
+        Alert.alert('Error', 'Failed to search users. Please try again.');
+      }
     } finally {
       setSearching(false);
     }
