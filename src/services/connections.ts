@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SyncService } from './sync';
 
 export interface ConnectionRequest {
   id: string;
@@ -62,7 +63,14 @@ export class ConnectionService {
 
       const updatedRequests = [...requests, newRequest];
       await AsyncStorage.setItem(this.CONNECTION_REQUESTS_KEY, JSON.stringify(updatedRequests));
-      
+
+      await SyncService.queueOperation({
+        service: 'connections',
+        action: 'sendRequest',
+        data: newRequest,
+        timestamp: Date.now(),
+      });
+
       return true;
     } catch (error) {
       console.error('Error sending connection request:', error);
@@ -155,6 +163,13 @@ export class ConnectionService {
       const updatedConnections = [...connections, connection];
       await AsyncStorage.setItem(this.CONNECTIONS_KEY, JSON.stringify(updatedConnections));
 
+      await SyncService.queueOperation({
+        service: 'connections',
+        action: 'acceptRequest',
+        data: { request: requests[requestIndex], connection },
+        timestamp: Date.now(),
+      });
+
       return true;
     } catch (error) {
       console.error('Error accepting connection request:', error);
@@ -181,6 +196,13 @@ export class ConnectionService {
       };
 
       await AsyncStorage.setItem(this.CONNECTION_REQUESTS_KEY, JSON.stringify(requests));
+
+      await SyncService.queueOperation({
+        service: 'connections',
+        action: 'declineRequest',
+        data: { request: requests[requestIndex] },
+        timestamp: Date.now(),
+      });
       return true;
     } catch (error) {
       console.error('Error declining connection request:', error);
@@ -267,6 +289,13 @@ export class ConnectionService {
       const connections = await this.getConnections();
       const filteredConnections = connections.filter(conn => conn.id !== connectionId);
       await AsyncStorage.setItem(this.CONNECTIONS_KEY, JSON.stringify(filteredConnections));
+
+      await SyncService.queueOperation({
+        service: 'connections',
+        action: 'removeConnection',
+        data: { id: connectionId },
+        timestamp: Date.now(),
+      });
       return true;
     } catch (error) {
       console.error('Error removing connection:', error);

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PatternStatus, UserPattern } from '../types';
+import { SyncService } from './sync';
 
 export class UserPatternService {
   private static STORAGE_KEY = 'user_patterns';
@@ -57,6 +58,16 @@ export class UserPatternService {
       ];
 
       await AsyncStorage.setItem(key, JSON.stringify(updatedPatterns));
+
+      const queued = updatedPatterns.find(p => p.patternId === patternId);
+      if (queued) {
+        await SyncService.queueOperation({
+          service: 'patterns',
+          action: 'set',
+          data: queued,
+          timestamp: Date.now(),
+        });
+      }
       return true;
     } catch (error) {
       console.error('Error in setPatternStatus:', error);
@@ -74,8 +85,15 @@ export class UserPatternService {
       
       // Remove the pattern
       const filteredPatterns = existingPatterns.filter(p => p.patternId !== patternId);
-      
+
       await AsyncStorage.setItem(key, JSON.stringify(filteredPatterns));
+
+      await SyncService.queueOperation({
+        service: 'patterns',
+        action: 'remove',
+        data: { userId, patternId },
+        timestamp: Date.now(),
+      });
       return true;
     } catch (error) {
       console.error('Error in removePatternStatus:', error);

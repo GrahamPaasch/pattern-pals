@@ -6,3 +6,4 @@ export { UserPatternService } from './userPatterns';
 export { UserSearchService, UserProfile } from './userSearch';
 export { supabase } from './supabase';
 export { PatternLibraryService } from './patternLibrary';
+export { SyncService } from './sync';

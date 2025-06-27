@@ -31,6 +31,7 @@ A cross-platform mobile app built with React Native and Expo that helps jugglers
 - **Notification Management**: Mark notifications as read, filter by type
 - **Pull-to-Refresh**: Refresh data throughout the app
 - **Data Persistence**: All user data saved locally with AsyncStorage
+- **Offline Sync**: Local changes sync to the cloud once a connection is available
 
 ### 🔧 **Technical Features**
 
@@ -39,6 +40,7 @@ A cross-platform mobile app built with React Native and Expo that helps jugglers
 - **Modular Architecture**: Well-organized code structure with services and hooks
 - **Error Handling**: Comprehensive error handling and user feedback
 - **Mock Data System**: Realistic mock data for testing and demonstration
+- **Offline-First Architecture**: Local data queued and synced with Supabase when online
 
 ## 🚀 Quick Start
 
