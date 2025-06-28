@@ -37,11 +37,7 @@ class ValidationService {
       errors.push('Name must be less than 50 characters');
     }
 
-    if (!user.email || user.email.trim().length === 0) {
-      errors.push('Email is required');
-    } else if (!this.isValidEmail(user.email)) {
-      errors.push('Please enter a valid email address');
-    }
+    // Note: Email is no longer required for anonymous authentication
 
     if (!user.experience) {
       errors.push('Experience level is required');
@@ -283,7 +279,7 @@ class ValidationService {
     return {
       ...user,
       name: user.name ? this.sanitizeString(user.name) : user.name,
-      email: user.email ? user.email.trim().toLowerCase() : user.email,
+      // Note: Email field removed for anonymous authentication
     };
   }
 }

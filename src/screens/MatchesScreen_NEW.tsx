@@ -66,6 +66,7 @@ const mockMatches: MockMatch[] = [
 ];
 
 type MatchesScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type ConnectionState = 'none' | 'pending_out' | 'pending_in' | 'connected';
 
 interface MatchesScreenProps {
   // Using the navigation hook instead of prop for better stack access
@@ -78,6 +79,7 @@ export default function MatchesScreen({}: MatchesScreenProps) {
   const [connectionRequests, setConnectionRequests] = useState<any[]>([]);
   const [sentRequests, setSentRequests] = useState<any[]>([]);
   const [connectedUserIds, setConnectedUserIds] = useState<Set<string>>(new Set());
+  const [connectionStates, setConnectionStates] = useState<Map<string, ConnectionState>>(new Map());
   const [backendStatus, setBackendStatus] = useState<'supabase' | 'local' | 'checking'>('checking');
   
   // Search state
@@ -88,6 +90,7 @@ export default function MatchesScreen({}: MatchesScreenProps) {
 
   useEffect(() => {
     loadConnectionData();
+    loadConnectionStates();
     loadAllUsers();
     checkBackendStatus();
   }, [user]);
@@ -101,6 +104,7 @@ export default function MatchesScreen({}: MatchesScreenProps) {
     if (selectedTab === 'requests' || selectedTab === 'sent') {
       console.log(`MatchesScreen: Switched to ${selectedTab} tab, refreshing data`);
       loadConnectionData();
+      loadConnectionStates();
     }
   }, [selectedTab]);
 
@@ -158,6 +162,81 @@ export default function MatchesScreen({}: MatchesScreenProps) {
     setConnectedUserIds(connectedIds);
   };
 
+  const loadConnectionStates = async () => {
+    if (!user) return;
+
+    try {
+      // Get all connections and requests to determine states
+      const [connections, allRequests, sentRequests] = await Promise.all([
+        ConnectionService.getConnectionsForUser(user.id),
+        ConnectionService.getConnectionRequestsForUser(user.id),
+        ConnectionService.getConnectionRequestsSentByUser(user.id)
+      ]);
+
+      const stateMap = new Map<string, ConnectionState>();
+
+      // Mark connected users
+      connections.forEach((conn: any) => {
+        const otherUserId = conn.userId1 === user.id ? conn.userId2 : conn.userId1;
+        stateMap.set(otherUserId, 'connected');
+      });
+
+      // Process incoming requests
+      allRequests.forEach((req: any) => {
+        if (req.status === 'pending' && req.toUserId === user.id) {
+          stateMap.set(req.fromUserId, 'pending_in');
+        }
+      });
+
+      // Process outgoing requests (sent by this user)
+      sentRequests.forEach((req: any) => {
+        if (req.status === 'pending' && req.fromUserId === user.id) {
+          stateMap.set(req.toUserId, 'pending_out');
+        }
+      });
+
+      console.log('Connection states loaded:', Array.from(stateMap.entries()));
+      setConnectionStates(stateMap);
+    } catch (error) {
+      console.error('Error loading connection states:', error);
+    }
+  };
+
+  const getConnectionButtonConfig = (userId: string) => {
+    const state = connectionStates.get(userId) || 'none';
+    
+    switch (state) {
+      case 'connected':
+        return {
+          text: '✓ Connected',
+          color: '#10b981', // Green
+          disabled: true,
+          textColor: '#ffffff'
+        };
+      case 'pending_out':
+        return {
+          text: '⏳ Pending',
+          color: '#f59e0b', // Yellow/Amber
+          disabled: true,
+          textColor: '#ffffff'
+        };
+      case 'pending_in':
+        return {
+          text: '↗️ Respond',
+          color: '#3b82f6', // Blue
+          disabled: false,
+          textColor: '#ffffff'
+        };
+      default:
+        return {
+          text: 'Connect',
+          color: '#6366f1', // Purple
+          disabled: false,
+          textColor: '#ffffff'
+        };
+    }
+  };
+
   const checkBackendStatus = async () => {
     try {
       const url = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://demo.supabase.co';
@@ -200,7 +279,6 @@ export default function MatchesScreen({}: MatchesScreenProps) {
         {
           id: userProfile.id,
           name: userProfile.name,
-          email: userProfile.email,
           experience: userProfile.experience,
           preferredProps: userProfile.preferredProps.map(prop => prop),
           lastActive: 'online',
@@ -267,10 +345,32 @@ export default function MatchesScreen({}: MatchesScreenProps) {
               <Text style={styles.secondaryButtonText}>View Profile</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={styles.primaryButton}
-              onPress={() => handleConnectWithUser(item)}
+              style={[
+                styles.primaryButton,
+                { 
+                  backgroundColor: getConnectionButtonConfig(item.id).color,
+                  opacity: getConnectionButtonConfig(item.id).disabled ? 0.8 : 1
+                }
+              ]}
+              onPress={() => {
+                const buttonConfig = getConnectionButtonConfig(item.id);
+                if (buttonConfig.disabled) return;
+                
+                if (buttonConfig.text === '↗️ Respond') {
+                  // Navigate to requests tab if they have a pending request
+                  setSelectedTab('requests');
+                } else {
+                  handleConnectWithUser(item);
+                }
+              }}
+              disabled={getConnectionButtonConfig(item.id).disabled}
             >
-              <Text style={styles.primaryButtonText}>Connect</Text>
+              <Text style={[
+                styles.primaryButtonText,
+                { color: getConnectionButtonConfig(item.id).textColor }
+              ]}>
+                {getConnectionButtonConfig(item.id).text}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -284,7 +384,6 @@ export default function MatchesScreen({}: MatchesScreenProps) {
         {
           id: userProfile.id,
           name: userProfile.name,
-          email: userProfile.email,
           experience: userProfile.experience,
           preferredProps: userProfile.preferredProps.map(prop => prop),
           lastActive: 'online',
@@ -352,11 +451,20 @@ export default function MatchesScreen({}: MatchesScreenProps) {
             );
 
             if (success) {
+              // Immediately update the connection state to show pending
+              setConnectionStates(prev => new Map(prev.set(targetUser.id, 'pending_out')));
+              
               Alert.alert(
                 'Request Sent!',
                 `Your connection request has been sent to ${targetUser.name}. They will be notified and can accept or decline your request.`,
                 [{ text: 'OK' }]
               );
+              
+              // Refresh connection data to ensure consistency
+              await Promise.all([
+                loadConnectionData(),
+                loadConnectionStates()
+              ]);
             } else {
               Alert.alert(
                 'Error',
@@ -435,11 +543,20 @@ export default function MatchesScreen({}: MatchesScreenProps) {
 
             if (success) {
               console.log('Connection request sent successfully');
+              // Immediately update the connection state to show pending
+              setConnectionStates(prev => new Map(prev.set(match.id, 'pending_out')));
+              
               Alert.alert(
                 'Request Sent!',
                 `Your connection request has been sent to ${match.name}. They will be notified and can accept or decline your request.`,
                 [{ text: 'OK' }]
               );
+              
+              // Refresh connection data to ensure consistency
+              await Promise.all([
+                loadConnectionData(),
+                loadConnectionStates()
+              ]);
             } else {
               console.log('Failed to send connection request');
               Alert.alert(
@@ -457,12 +574,21 @@ export default function MatchesScreen({}: MatchesScreenProps) {
   const handleAcceptRequest = async (request: any) => {
     const success = await ConnectionService.acceptConnectionRequest(request.id);
     if (success) {
+      // Immediately update connection state for instant UI feedback
+      setConnectedUserIds(prev => new Set(prev.add(request.fromUserId)));
+      setConnectionStates(prev => new Map(prev.set(request.fromUserId, 'connected')));
+      
       Alert.alert(
         'Connection Accepted!',
         `You are now connected with ${request.fromUserName}. You can now schedule sessions and message each other.`,
         [{ text: 'OK' }]
       );
-      loadConnectionData(); // Refresh the data
+      
+      // Refresh all connection data to ensure consistency
+      await Promise.all([
+        loadConnectionData(),
+        loadConnectionStates()
+      ]);
     } else {
       Alert.alert('Error', 'Failed to accept connection request. Please try again.');
     }
@@ -567,10 +693,31 @@ export default function MatchesScreen({}: MatchesScreenProps) {
             <Text style={styles.secondaryButtonText}>View Profile</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.primaryButton}
-            onPress={() => handleConnect(item)}
+            style={[
+              styles.primaryButton,
+              { 
+                backgroundColor: getConnectionButtonConfig(item.id).color,
+                opacity: getConnectionButtonConfig(item.id).disabled ? 0.8 : 1
+              }
+            ]}
+            onPress={() => {
+              const buttonConfig = getConnectionButtonConfig(item.id);
+              if (buttonConfig.disabled) return;
+              
+              if (buttonConfig.text === '↗️ Respond') {
+                setSelectedTab('requests');
+              } else {
+                handleConnect(item);
+              }
+            }}
+            disabled={getConnectionButtonConfig(item.id).disabled}
           >
-            <Text style={styles.primaryButtonText}>Connect</Text>
+            <Text style={[
+              styles.primaryButtonText,
+              { color: getConnectionButtonConfig(item.id).textColor }
+            ]}>
+              {getConnectionButtonConfig(item.id).text}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -740,7 +887,7 @@ export default function MatchesScreen({}: MatchesScreenProps) {
                   console.log('🔍 Current allUsers state:', allUsers);
                   Alert.alert(
                     'Debug: All Users',
-                    `Found ${users.length} users in system:\n\n${users.map(u => `• ${u.name} (${u.email})`).join('\n')}\n\nBackend: ${UserSearchService.getBackendStatus()}\nCurrent user: ${user.id}`,
+                    `Found ${users.length} users in system:\n\n${users.map(u => `• ${u.name} (${u.id})`).join('\n')}\n\nBackend: ${UserSearchService.getBackendStatus()}\nCurrent user: ${user.id}`,
                     [{ text: 'OK' }]
                   );
                   
@@ -759,7 +906,7 @@ export default function MatchesScreen({}: MatchesScreenProps) {
             <TouchableOpacity 
               style={[styles.refreshButton, { backgroundColor: '#10b981', marginTop: 8 }]}
               onPress={async () => {
-                const success = await UserSearchService.addTestUser('GRAHAM', 'graham@test.com', 'Intermediate');
+                const success = await UserSearchService.addTestUser('GRAHAM', 'Intermediate');
                 if (success) {
                   Alert.alert('Test User Added', 'GRAHAM has been added to the user list for testing');
                   loadAllUsers(); // Refresh the user list
@@ -774,7 +921,7 @@ export default function MatchesScreen({}: MatchesScreenProps) {
             <TouchableOpacity 
               style={[styles.refreshButton, { backgroundColor: '#10b981', marginTop: 8 }]}
               onPress={async () => {
-                const success = await UserSearchService.addTestUser('PTRKASEMAN', 'peter@test.com', 'Advanced');
+                const success = await UserSearchService.addTestUser('PTRKASEMAN', 'Advanced');
                 if (success) {
                   Alert.alert('Test User Added', 'PTRKASEMAN has been added to the user list for testing');
                   loadAllUsers(); // Refresh the user list
@@ -944,7 +1091,7 @@ export default function MatchesScreen({}: MatchesScreenProps) {
                   console.log('🔍 All users in system:', users);
                   Alert.alert(
                     'Debug: All Users',
-                    `Found ${users.length} users in system:\n\n${users.map(u => `• ${u.name} (${u.email})`).join('\n')}`,
+                    `Found ${users.length} users in system:\n\n${users.map(u => `• ${u.name} (${u.id})`).join('\n')}`,
                     [{ text: 'OK' }]
                   );
                 } catch (error) {

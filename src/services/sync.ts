@@ -15,6 +15,9 @@ const QUEUE_KEY = 'offline_queue';
 export class SyncService {
   static async isOnline(): Promise<boolean> {
     try {
+      if (!supabase) {
+        return false;
+      }
       const { error } = await supabase.from('users').select('id').limit(1);
       if (error) throw error;
       return true;
@@ -43,7 +46,7 @@ export class SyncService {
   }
 
   static async sync(): Promise<void> {
-    if (!(await this.isOnline())) return;
+    if (!(await this.isOnline()) || !supabase) return;
     const queue = await this.getQueue();
     for (const op of queue) {
       try {

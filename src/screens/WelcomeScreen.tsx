@@ -2,42 +2,25 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  Alert,
   ScrollView,
+  TextInput,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuth } from '../hooks/useAuth';
-import { ExperienceLevel, PropType, TimeBlock, WeekDay } from '../types';
-
-type ProfileCreationScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  'Welcome'
->;
-
-type ProfileCreationScreenRouteProp = RouteProp<RootStackParamList, 'Welcome'>;
+import type { PropType, ExperienceLevel } from '../types';
 
 interface Props {
-  navigation: ProfileCreationScreenNavigationProp;
-  route: ProfileCreationScreenRouteProp;
+  navigation: any;
 }
 
-const EXPERIENCE_LEVELS: ExperienceLevel[] = ['Beginner', 'Intermediate', 'Advanced'];
-const PROP_TYPES: PropType[] = ['clubs', 'balls', 'rings'];
-const WEEK_DAYS: WeekDay[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const experienceLevels: ExperienceLevel[] = ['Beginner', 'Intermediate', 'Advanced'];
+const propTypes: PropType[] = ['clubs', 'balls', 'rings'];
 
-export default function ProfileCreationScreen({ navigation, route }: Props) {
-  // Note: This screen is no longer used - replaced by WelcomeScreen for anonymous auth
-  // Redirect to Welcome screen
-  React.useEffect(() => {
-    navigation.navigate('Welcome');
-  }, [navigation]);
-  
+export default function OnboardingScreen({ navigation }: Props) {
+  const { createUser } = useAuth();
   const [name, setName] = useState('');
   const [experience, setExperience] = useState<ExperienceLevel>('Beginner');
   const [selectedProps, setSelectedProps] = useState<PropType[]>(['clubs']);
@@ -53,55 +36,75 @@ export default function ProfileCreationScreen({ navigation, route }: Props) {
 
   const handleCreateProfile = async () => {
     if (!name.trim()) {
-      Alert.alert('Error', 'Please enter your name');
+      Alert.alert('Name Required', 'Please enter your name to get started');
       return;
     }
 
     if (selectedProps.length === 0) {
-      Alert.alert('Error', 'Please select at least one prop type');
+      Alert.alert('Props Required', 'Please select at least one prop type you practice with');
       return;
     }
 
-    // Redirect to anonymous authentication
-    navigation.navigate('Welcome');
+    setLoading(true);
+    try {
+      await createUser({
+        name: name.trim(),
+        experience,
+        preferredProps: selectedProps,
+      });
+      
+      // Navigation will be handled automatically by auth state change
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to create your profile. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Create Your Profile</Text>
-          <Text style={styles.subtitle}>Tell us about your juggling experience</Text>
+          <Text style={styles.title}>Welcome to PatternPals! 🤹‍♂️</Text>
+          <Text style={styles.subtitle}>
+            Let's set up your juggling profile. We only need the basics to get you started!
+          </Text>
         </View>
 
         <View style={styles.form}>
+          {/* Name Input */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Name</Text>
+            <Text style={styles.label}>What should we call you?</Text>
             <TextInput
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Enter your name"
+              placeholder="Enter your name or nickname"
               autoCapitalize="words"
+              autoFocus
             />
+            <Text style={styles.helperText}>
+              This is how other jugglers will see you in the app
+            </Text>
           </View>
 
+          {/* Experience Level */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Experience Level</Text>
-            <View style={styles.optionsContainer}>
-              {EXPERIENCE_LEVELS.map((level) => (
+            <Text style={styles.label}>What's your juggling experience?</Text>
+            <View style={styles.optionsGrid}>
+              {experienceLevels.map((level) => (
                 <TouchableOpacity
                   key={level}
                   style={[
-                    styles.option,
-                    experience === level && styles.optionSelected,
+                    styles.optionButton,
+                    experience === level && styles.selectedOption,
                   ]}
                   onPress={() => setExperience(level)}
                 >
                   <Text
                     style={[
                       styles.optionText,
-                      experience === level && styles.optionTextSelected,
+                      experience === level && styles.selectedOptionText,
                     ]}
                   >
                     {level}
@@ -111,23 +114,26 @@ export default function ProfileCreationScreen({ navigation, route }: Props) {
             </View>
           </View>
 
+          {/* Preferred Props */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Preferred Props</Text>
-            <Text style={styles.helperText}>Select all that apply</Text>
-            <View style={styles.optionsContainer}>
-              {PROP_TYPES.map((prop) => (
+            <Text style={styles.label}>What do you like to juggle with?</Text>
+            <Text style={styles.helperText}>
+              Select all that you practice with or want to learn
+            </Text>
+            <View style={styles.optionsGrid}>
+              {propTypes.map((prop) => (
                 <TouchableOpacity
                   key={prop}
                   style={[
-                    styles.option,
-                    selectedProps.includes(prop) && styles.optionSelected,
+                    styles.optionButton,
+                    selectedProps.includes(prop) && styles.selectedOption,
                   ]}
                   onPress={() => toggleProp(prop)}
                 >
                   <Text
                     style={[
                       styles.optionText,
-                      selectedProps.includes(prop) && styles.optionTextSelected,
+                      selectedProps.includes(prop) && styles.selectedOptionText,
                     ]}
                   >
                     {prop.charAt(0).toUpperCase() + prop.slice(1)}
@@ -137,20 +143,21 @@ export default function ProfileCreationScreen({ navigation, route }: Props) {
             </View>
           </View>
 
+          {/* Create Profile Button */}
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={[styles.createButton, loading && styles.buttonDisabled]}
             onPress={handleCreateProfile}
             disabled={loading}
           >
-            <Text style={styles.buttonText}>
-              {loading ? 'Creating Profile...' : 'Create Profile'}
+            <Text style={styles.createButtonText}>
+              {loading ? 'Setting up your profile...' : 'Start Juggling Together! 🎪'}
             </Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            You can always update your preferences later in your profile settings.
+            🔒 No email or password required! We keep things simple and focused on juggling.
           </Text>
         </View>
       </ScrollView>
@@ -169,89 +176,103 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 40,
     marginBottom: 40,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#1f2937',
-    marginBottom: 8,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
     color: '#6b7280',
     textAlign: 'center',
+    lineHeight: 24,
   },
   form: {
     flex: 1,
   },
   inputContainer: {
-    marginBottom: 24,
+    marginBottom: 32,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#374151',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   helperText: {
     fontSize: 14,
     color: '#6b7280',
-    marginBottom: 12,
+    marginTop: 8,
+    lineHeight: 20,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
     backgroundColor: '#ffffff',
-  },
-  optionsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  option: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#ffffff',
-  },
-  optionSelected: {
-    backgroundColor: '#6366f1',
-    borderColor: '#6366f1',
-  },
-  optionText: {
-    fontSize: 14,
-    color: '#374151',
     fontWeight: '500',
   },
-  optionTextSelected: {
+  optionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  optionButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#ffffff',
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  selectedOption: {
+    borderColor: '#6366f1',
+    backgroundColor: '#6366f1',
+  },
+  optionText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  selectedOptionText: {
     color: '#ffffff',
   },
-  button: {
+  createButton: {
     backgroundColor: '#6366f1',
-    borderRadius: 8,
+    borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 20,
+    shadowColor: '#6366f1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
-  buttonText: {
+  createButtonText: {
     color: '#ffffff',
     fontSize: 18,
     fontWeight: '600',
   },
   footer: {
-    marginTop: 20,
-    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginTop: 40,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
   },
   footerText: {
     fontSize: 14,

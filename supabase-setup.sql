@@ -8,7 +8,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  email TEXT UNIQUE NOT NULL,
+  email TEXT, -- Nullable to support anonymous users
   avatar TEXT,
   experience TEXT NOT NULL CHECK (experience IN ('Beginner', 'Intermediate', 'Advanced')),
   preferred_props TEXT[] DEFAULT '{}',
@@ -68,7 +68,8 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 -- Create indexes for performance
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique ON users(email) WHERE email IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_users_name ON users(name);
 CREATE INDEX IF NOT EXISTS idx_users_experience ON users(experience);
 CREATE INDEX IF NOT EXISTS idx_connection_requests_to_user ON connection_requests(to_user_id);
@@ -152,10 +153,10 @@ CREATE POLICY "Users can update their notifications" ON notifications
     FOR UPDATE USING (true);
 
 -- Insert some sample data for testing (optional)
-INSERT INTO users (id, name, email, experience, preferred_props, known_patterns, want_to_learn_patterns) VALUES
-  ('demo-user-1', 'Demo User 1', 'demo1@example.com', 'Intermediate', ARRAY['clubs'], ARRAY['6 Count', 'Walking Pass'], ARRAY['645', 'Custom Double Spin']),
-  ('demo-user-2', 'Demo User 2', 'demo2@example.com', 'Advanced', ARRAY['clubs', 'balls'], ARRAY['6 Count', '645', 'Custom Double Spin'], ARRAY['Chocolate Bar', 'Benzene Ring'])
-ON CONFLICT (email) DO NOTHING;
+INSERT INTO users (id, name, experience, preferred_props, known_patterns, want_to_learn_patterns) VALUES
+  ('demo-user-1', 'Demo User 1', 'Intermediate', ARRAY['clubs'], ARRAY['6 Count', 'Walking Pass'], ARRAY['645', 'Custom Double Spin']),
+  ('demo-user-2', 'Demo User 2', 'Advanced', ARRAY['clubs', 'balls'], ARRAY['6 Count', '645', 'Custom Double Spin'], ARRAY['Chocolate Bar', 'Benzene Ring'])
+ON CONFLICT (id) DO NOTHING;
 
 -- Verify setup
 SELECT 'Setup completed successfully! Tables created:' as status;

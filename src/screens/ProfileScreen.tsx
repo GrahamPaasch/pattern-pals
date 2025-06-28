@@ -49,7 +49,6 @@ export default function ProfileScreen() {
             )}
           </View>
           <Text style={styles.name}>{userProfile?.name}</Text>
-          <Text style={styles.email}>{userProfile?.email}</Text>
           <View style={styles.experienceBadge}>
             <Text style={styles.experienceText}>{userProfile?.experience}</Text>
           </View>
@@ -197,11 +196,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1f2937',
-    marginBottom: 4,
-  },
-  email: {
-    fontSize: 16,
-    color: '#6b7280',
     marginBottom: 12,
   },
   experienceBadge: {

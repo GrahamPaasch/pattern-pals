@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PatternStatus, UserPattern } from '../types';
 import { SyncService } from './sync';
+import { RealTimeSyncService } from './realTimeSync';
 
 export class UserPatternService {
   private static STORAGE_KEY = 'user_patterns';
@@ -37,11 +38,16 @@ export class UserPatternService {
   static async setPatternStatus(
     userId: string, 
     patternId: string, 
-    status: PatternStatus
+    status: PatternStatus,
+    userName?: string
   ): Promise<boolean> {
     try {
       const key = `${this.STORAGE_KEY}_${userId}`;
       const existingPatterns = await this.getUserPatterns(userId);
+      
+      // Check if this is a new "known" status (achievement!)
+      const existingPattern = existingPatterns.find(p => p.patternId === patternId);
+      const isNewLearned = status === 'known' && existingPattern?.status !== 'known';
       
       // Remove existing entry for this pattern
       const filteredPatterns = existingPatterns.filter(p => p.patternId !== patternId);
@@ -68,6 +74,12 @@ export class UserPatternService {
           timestamp: Date.now(),
         });
       }
+
+      // 🚀 REAL-TIME FEATURE: Broadcast pattern achievement to friends!
+      if (isNewLearned && userName) {
+        await RealTimeSyncService.broadcastPatternLearned(userId, userName, patternId);
+      }
+
       return true;
     } catch (error) {
       console.error('Error in setPatternStatus:', error);

@@ -6,7 +6,6 @@ import { patterns, getPatternById } from '../data/patterns';
 export interface UserProfile {
   id: string;
   name: string;
-  email: string;
   avatar?: string;
   experience: 'Beginner' | 'Intermediate' | 'Advanced';
   preferredProps: string[];
@@ -68,11 +67,9 @@ export class UserSearchService {
           return this.getAllUsersLocal(currentUserId);
         }
 
-        // Transform Supabase data to our format
         const users = data.map((user: any) => ({
           id: user.id,
           name: user.name,
-          email: user.email,
           avatar: user.avatar,
           experience: user.experience,
           preferredProps: user.preferred_props || [],
@@ -114,13 +111,13 @@ export class UserSearchService {
         const users = JSON.parse(stored);
         console.log(`UserSearchService: Parsed ${users.length} users from storage:`);
         users.forEach((user: UserProfile, index: number) => {
-          console.log(`  ${index + 1}. ${user.name} (${user.id}) - ${user.email}`);
+          console.log(`  ${index + 1}. ${user.name} (${user.id})`);
         });
         
         const filteredUsers = users.filter((user: UserProfile) => user.id !== currentUserId);
         console.log(`UserSearchService: After filtering current user ${currentUserId}, ${filteredUsers.length} users remain:`);
         filteredUsers.forEach((user: UserProfile, index: number) => {
-          console.log(`  ${index + 1}. ${user.name} (${user.id}) - ${user.email}`);
+          console.log(`  ${index + 1}. ${user.name} (${user.id})`);
         });
         return filteredUsers;
       }
@@ -130,7 +127,7 @@ export class UserSearchService {
       const demoUsers = this.getDemoUsers().filter(user => user.id !== currentUserId);
       console.log(`UserSearchService: Returning ${demoUsers.length} demo users:`);
       demoUsers.forEach((user: UserProfile, index: number) => {
-        console.log(`  ${index + 1}. ${user.name} (${user.id}) - ${user.email}`);
+        console.log(`  ${index + 1}. ${user.name} (${user.id})`);
       });
       return demoUsers;
     } catch (error) {
@@ -171,8 +168,7 @@ export class UserSearchService {
       }
 
       return allUsers.filter(user =>
-        user.name.toLowerCase().includes(lowercaseQuery) ||
-        user.email.toLowerCase().includes(lowercaseQuery)
+        user.name.toLowerCase().includes(lowercaseQuery)
       );
     } catch (error) {
       console.error('Error searching users by name:', error);
@@ -205,7 +201,6 @@ export class UserSearchService {
           .upsert({
             id: user.id,
             name: user.name,
-            email: user.email,
             avatar: user.avatar,
             experience: user.experience,
             preferred_props: user.preferredProps,
@@ -352,13 +347,6 @@ export class UserSearchService {
         if (nameScore > 0) {
           searchScore += nameScore * 3;
           matchedFields.push('name');
-        }
-
-        // Email matching
-        const emailScore = this.calculateFieldScore(user.email, queryWords, fuzzyMatch, maxDistance);
-        if (emailScore > 0) {
-          searchScore += emailScore * 2;
-          matchedFields.push('email');
         }
 
         // Bio matching
@@ -676,7 +664,6 @@ export class UserSearchService {
       {
         id: 'peter_caseman',
         name: 'Peter Caseman',
-        email: 'peter@example.com',
         experience: 'Advanced',
         preferredProps: ['clubs', 'balls'],
         location: 'Berkeley, CA',
@@ -688,7 +675,6 @@ export class UserSearchService {
       {
         id: 'alex_chen',
         name: 'Alex Chen',
-        email: 'alex@example.com',
         experience: 'Intermediate',
         preferredProps: ['clubs'],
         location: 'San Francisco, CA',
@@ -700,7 +686,6 @@ export class UserSearchService {
       {
         id: 'sarah_johnson',
         name: 'Sarah Johnson',
-        email: 'sarah@example.com',
         experience: 'Advanced',
         preferredProps: ['clubs', 'rings'],
         location: 'Oakland, CA',
@@ -712,7 +697,6 @@ export class UserSearchService {
       {
         id: 'mike_rodriguez',
         name: 'Mike Rodriguez',
-        email: 'mike@example.com',
         experience: 'Beginner',
         preferredProps: ['balls', 'clubs'],
         location: 'San Jose, CA',
@@ -724,7 +708,6 @@ export class UserSearchService {
       {
         id: 'emma_watson',
         name: 'Emma Watson',
-        email: 'emma@example.com',
         experience: 'Intermediate',
         preferredProps: ['clubs'],
         location: 'Palo Alto, CA',
@@ -736,7 +719,6 @@ export class UserSearchService {
       {
         id: 'david_kim',
         name: 'David Kim',
-        email: 'david@example.com',
         experience: 'Advanced',
         preferredProps: ['clubs', 'balls', 'rings'],
         location: 'Stanford, CA',
@@ -751,11 +733,10 @@ export class UserSearchService {
   /**
    * Manually add a user for testing (useful when backend isn't set up yet)
    */
-  static async addTestUser(name: string, email: string, experience: 'Beginner' | 'Intermediate' | 'Advanced' = 'Intermediate'): Promise<boolean> {
+  static async addTestUser(name: string, experience: 'Beginner' | 'Intermediate' | 'Advanced' = 'Intermediate'): Promise<boolean> {
     const testUser: UserProfile = {
       id: `test_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       name,
-      email,
       avatar: '',
       experience,
       preferredProps: ['clubs'],
@@ -766,7 +747,7 @@ export class UserSearchService {
       wantToLearnPatterns: ['645', 'Custom Double Spin'],
     };
 
-    console.log(`UserSearchService: Adding test user ${name} (${email})`);
+    console.log(`UserSearchService: Adding test user ${name}`);
     return this.addOrUpdateUser(testUser);
   }
 

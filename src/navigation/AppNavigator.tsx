@@ -8,10 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/useAuth';
 
 // Screens
-import OnboardingScreen from '../screens/OnboardingScreen';
-import SignInScreen from '../screens/SignInScreen';
-import SignUpScreen from '../screens/SignUpScreen';
-import ProfileCreationScreen from '../screens/ProfileCreationScreen';
+import WelcomeScreen from '../screens/WelcomeScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ProfileEditScreen from '../screens/ProfileEditScreen';
@@ -29,13 +26,7 @@ import ScheduleScreen from '../screens/ScheduleScreen';
 import DebugScreen from '../screens/DebugScreen';
 
 export type RootStackParamList = {
-  Onboarding: undefined;
-  SignIn: undefined;
-  SignUp: undefined;
-  ProfileCreation: {
-    email: string;
-    password: string;
-  };
+  Welcome: undefined;
   MainTabs: undefined;
   ProfileEdit: undefined;
   AvailabilityManagement: undefined;
@@ -95,9 +86,6 @@ function MainTabs() {
               break;
             case 'Profile':
               iconName = focused ? 'person' : 'person-outline';
-              break;
-            case 'Debug':
-              iconName = focused ? 'bug' : 'bug-outline';
               break;
             default:
               iconName = 'help-outline';
@@ -210,15 +198,9 @@ export default function AppNavigator() {
         }}
       >
         {!user ? (
-          // Auth flow
+          // Anonymous auth flow - no email/password required!
           <>
-            <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
-            <RootStack.Screen name="SignIn" component={SignInScreen} />
-            <RootStack.Screen name="SignUp" component={SignUpScreen} />
-            <RootStack.Screen 
-              name="ProfileCreation" 
-              component={ProfileCreationScreen} 
-            />
+            <RootStack.Screen name="Welcome" component={WelcomeScreen} />
           </>
         ) : (
           // Main app flow

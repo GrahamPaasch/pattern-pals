@@ -21,7 +21,6 @@ export interface TimeBlock {
 export interface User {
   id: string;
   name: string;
-  email: string;
   avatar?: string;
   experience: ExperienceLevel;
   preferredProps: PropType[];

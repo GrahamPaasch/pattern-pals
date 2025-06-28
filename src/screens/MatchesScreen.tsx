@@ -163,7 +163,6 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
       const mockMatches: UserProfile[] = [
         {
           id: '2',
-          email: 'alice@example.com',
           name: 'Alice Cooper',
           experience: 'Intermediate',
           preferredProps: ['clubs', 'balls'],
@@ -175,7 +174,6 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
         },
         {
           id: '3',
-          email: 'bob@example.com',
           name: 'Bob Wilson',
           experience: 'Advanced',
           preferredProps: ['clubs'],
@@ -206,11 +204,46 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
     if (!user) return;
     
     try {
-      console.log('Loading connection requests for user:', user.id);
+      console.log('🎯 MatchesScreen: Loading connection requests for user:', user.id);
+      console.log('🎯 MatchesScreen: User ID type:', typeof user.id);
+      console.log('🎯 MatchesScreen: User ID length:', user.id?.length || 'null');
+      console.log('🎯 MatchesScreen: User name:', user.name);
       
       // Get incoming connection requests from ConnectionService
       const allRequests = await ConnectionService.getConnectionRequestsForUser(user.id);
-      console.log('Raw requests from service:', allRequests);
+      console.log('🎯 MatchesScreen: Raw requests from service:', allRequests);
+      
+      // 🧪 If no incoming requests exist, create some test data for debugging
+      if (allRequests.length === 0) {
+        console.log('🧪 No incoming requests found, creating test data...');
+        await ConnectionService.createTestIncomingRequests(user.id, user.name || 'Unknown User');
+        
+        // Reload requests after creating test data
+        const newRequests = await ConnectionService.getConnectionRequestsForUser(user.id);
+        console.log('🧪 Requests after creating test data:', newRequests);
+        
+        // Filter to only incoming requests that are still pending
+        const incomingRequests = newRequests
+          .filter((req: any) => {
+            const isMatch = req.toUserId === user.id && req.status === 'pending';
+            console.log(`🎯 MatchesScreen: Filtering "${req.toUserId}" === "${user.id}" && status="${req.status}" = ${isMatch}`);
+            return isMatch;
+          })
+          .map((req: any) => ({
+            id: req.id,
+            fromUserId: req.fromUserId,
+            fromUserName: req.fromUserName,
+            toUserId: req.toUserId,
+            toUserName: req.toUserName,
+            message: req.message,
+            status: req.status,
+            createdAt: req.createdAt
+          }));
+
+        console.log('Processed incoming requests (after test data):', incomingRequests);
+        setConnectionRequests(incomingRequests);
+        return;
+      }
       
       // Filter to only incoming requests that are still pending
       const incomingRequests = allRequests
@@ -261,7 +294,6 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
       const results: UserProfile[] = enhancedResults.map(result => ({
         id: result.id,
         name: result.name,
-        email: result.email,
         avatar: result.avatar,
         experience: result.experience,
         preferredProps: result.preferredProps,
@@ -339,11 +371,14 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
       const success = await ConnectionService.acceptConnectionRequest(requestId);
       
       if (success) {
-        // Update connection state and reload data
+        // Immediately update the connection state for instant UI feedback
         setConnectionStates(prev => new Map(prev.set(fromUserId, 'connected')));
+        
+        // Reload all connection data to ensure consistency
         await Promise.all([
           loadConnectionRequests(),
-          loadConnectionStates()
+          loadConnectionStates(),
+          loadMatches() // Also refresh matches to update any connection buttons there
         ]);
         
         Alert.alert(

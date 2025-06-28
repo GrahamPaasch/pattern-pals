@@ -19,7 +19,7 @@ export interface UseUserPatternsReturn {
 }
 
 export const useUserPatterns = (): UseUserPatternsReturn => {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [userPatterns, setUserPatterns] = useState<Map<string, PatternStatus>>(new Map());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +82,12 @@ export const useUserPatterns = (): UseUserPatternsReturn => {
     }
 
     try {
-      const success = await UserPatternService.setPatternStatus(user.id, patternId, status);
+      const success = await UserPatternService.setPatternStatus(
+        user.id, 
+        patternId, 
+        status, 
+        userProfile?.name || 'Anonymous User'
+      );
       
       if (success) {
         // Update local state

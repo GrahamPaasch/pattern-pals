@@ -5,6 +5,7 @@ import { ErrorService, ErrorType, ErrorSeverity } from './errorService';
 import { PerformanceService } from './performanceService';
 import { ValidationService } from './validationService';
 import { CacheService, CacheKeys } from './cacheService';
+import { RealTimeSyncService } from './realTimeSync';
 
 export interface ConnectionRequest {
   id: string;
@@ -34,10 +35,25 @@ export class ConnectionService {
   private static USE_SUPABASE = true; // Enable Supabase backend (will fallback to local if not configured)
 
   /**
+   * Generate a proper UUID format for Supabase compatibility
+   */
+  private static generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  /**
    * Check if Supabase is properly configured
    */
   private static isSupabaseConfigured(): boolean {
-    return isSupabaseConfigured() === true;
+    const configured = isSupabaseConfigured() === true;
+    console.log('🔧 ConnectionService: Supabase configured?', configured);
+    console.log('🔧 ConnectionService: Supabase client exists?', !!supabase);
+    console.log('🔧 ConnectionService: USE_SUPABASE flag?', this.USE_SUPABASE);
+    return configured;
   }
 
   /**
@@ -50,6 +66,10 @@ export class ConnectionService {
     toUserName: string,
     message?: string
   ): Promise<boolean> {
+    // 🔍 DEBUG: Log the actual user IDs being used
+    console.log(`🔍 SEND_REQUEST_DEBUG: fromUserId=${fromUserId}, toUserId=${toUserId}`);
+    console.log(`🔍 SEND_REQUEST_DEBUG: fromUserName=${fromUserName}, toUserName=${toUserName}`);
+    
     const metricId = PerformanceService.startMetric('send_connection_request', 'api', {
       fromUserId,
       toUserId,
@@ -126,6 +146,9 @@ export class ConnectionService {
         // Invalidate cache for connection requests
         await CacheService.invalidatePattern(`connection_requests_${toUserId}`);
         
+        // 🚀 REAL-TIME FEATURE: Instantly notify target user
+        await RealTimeSyncService.broadcastConnectionRequest(fromUserId, fromUserName, toUserId, toUserName);
+        
         console.log('ConnectionService: Successfully sent request via Supabase');
         PerformanceService.endMetric(metricId, { success: true, backend: 'supabase' });
         return true;
@@ -184,7 +207,7 @@ export class ConnectionService {
       }
 
       const newRequest: ConnectionRequest = {
-        id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: this.generateUUID(),
         fromUserId,
         toUserId,
         fromUserName,
@@ -219,7 +242,13 @@ export class ConnectionService {
    */
   static async getConnectionRequests(): Promise<ConnectionRequest[]> {
     try {
+      console.log('🔧 ConnectionService: Getting connection requests...');
+      console.log('🔧 ConnectionService: USE_SUPABASE:', this.USE_SUPABASE);
+      console.log('🔧 ConnectionService: isSupabaseConfigured():', this.isSupabaseConfigured());
+      console.log('🔧 ConnectionService: supabase exists:', !!supabase);
+      
       if (this.USE_SUPABASE && this.isSupabaseConfigured() && supabase) {
+        console.log('🔧 ConnectionService: Using Supabase backend');
         // Use Supabase for real backend
         const { data, error } = await supabase
           .from('connection_requests')
@@ -227,11 +256,13 @@ export class ConnectionService {
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('Supabase error getting connection requests:', error);
-          console.log('ConnectionService: Falling back to local storage due to Supabase error');
+          console.error('🔧 Supabase error getting connection requests:', error);
+          console.log('🔧 ConnectionService: Falling back to local storage due to Supabase error');
           return this.getConnectionRequestsLocal();
         }
 
+        console.log('🔧 ConnectionService: Successfully fetched from Supabase:', data?.length || 0, 'requests');
+        
         // Transform Supabase data to our format
         return data.map((req: any) => ({
           id: req.id,
@@ -246,12 +277,12 @@ export class ConnectionService {
         }));
       } else {
         // Fallback to AsyncStorage for development/testing
-        console.log('ConnectionService: Using local storage for getting requests (Supabase not configured or disabled)');
+        console.log('🔧 ConnectionService: Using local storage for getting requests (Supabase not configured or disabled)');
         return this.getConnectionRequestsLocal();
       }
     } catch (error) {
-      console.error('Error getting connection requests:', error);
-      console.log('ConnectionService: Falling back to local storage due to error');
+      console.error('🔧 Error getting connection requests:', error);
+      console.log('🔧 ConnectionService: Falling back to local storage due to error');
       return this.getConnectionRequestsLocal();
     }
   }
@@ -281,57 +312,268 @@ export class ConnectionService {
 
   /**
    * Create demo connection requests for testing cross-user functionality
+   * Updated to use REAL user IDs from current app users for cross-user testing
    */
   private static async createDemoRequestsIfEmpty(): Promise<ConnectionRequest[]> {
     try {
-      const demoRequests: ConnectionRequest[] = [
-        {
-          id: 'demo_req_1',
-          fromUserId: 'demo_user_1',
-          toUserId: 'demo_user_2',
-          fromUserName: 'Alex Chen',
-          toUserName: 'Sarah Williams',
-          status: 'pending',
-          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-          updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-          message: 'Hi! I saw you practice similar patterns. Would love to juggle together!'
-        },
-        {
-          id: 'demo_req_2',
-          fromUserId: 'demo_user_3',
-          toUserId: 'demo_user_2',
-          fromUserName: 'Mike Johnson',
-          toUserName: 'Sarah Williams',
-          status: 'pending',
-          createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
-          updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
-          message: 'Hey! Interested in working on some 645 patterns together?'
+      // Get current users from the app to create realistic cross-user requests
+      const { UserSearchService } = await import('./userSearch');
+      const allUsers = await UserSearchService.getAllUsers('demo_current_user');
+      
+      console.log('🎯 Creating realistic demo requests with actual user IDs for cross-user testing');
+      console.log(`📊 Found ${allUsers.length} users in the app for demo requests`);
+      
+      const demoRequests: ConnectionRequest[] = [];
+      
+      // If we have at least 2 users, create cross-requests between them
+      if (allUsers.length >= 2) {
+        // Create bidirectional requests between real users for testing
+        for (let i = 0; i < Math.min(allUsers.length - 1, 3); i++) {
+          const fromUser = allUsers[i];
+          const toUser = allUsers[i + 1];
+          
+          // Request from user A to user B
+          demoRequests.push({
+            id: this.generateUUID(),
+            fromUserId: fromUser.id,
+            toUserId: toUser.id,
+            fromUserName: fromUser.name,
+            toUserName: toUser.name,
+            status: 'pending',
+            createdAt: new Date(Date.now() - (i + 1) * 30 * 60 * 1000), // Staggered times
+            updatedAt: new Date(Date.now() - (i + 1) * 30 * 60 * 1000),
+            message: `Hey ${toUser.name}! I'd love to juggle together and share some patterns. Want to connect?`
+          });
+          
+          // Also create reverse request for maximum cross-user testing
+          if (i === 0) {
+            demoRequests.push({
+              id: this.generateUUID(),
+              fromUserId: toUser.id,
+              toUserId: fromUser.id,
+              fromUserName: toUser.name,
+              toUserName: fromUser.name,
+              status: 'pending',
+              createdAt: new Date(Date.now() - 15 * 60 * 1000), // 15 minutes ago
+              updatedAt: new Date(Date.now() - 15 * 60 * 1000),
+              message: `Hi ${fromUser.name}! I noticed we have similar pattern interests. Let's practice together!`
+            });
+          }
         }
-      ];
+      }
+      
+      // If no real users yet, create some placeholder requests with more realistic looking IDs
+      if (demoRequests.length === 0) {
+        console.log('🎯 No real users found, creating realistic placeholder requests');
+        demoRequests.push(
+          {
+            id: 'realistic_req_1',
+            fromUserId: '12345678-1234-4567-8901-123456789001',
+            toUserId: '12345678-1234-4567-8901-123456789002',
+            fromUserName: 'Alex Chen',
+            toUserName: 'Sarah Williams',
+            status: 'pending',
+            createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+            updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+            message: 'Hi! I saw you practice similar patterns. Would love to juggle together!'
+          },
+          {
+            id: 'realistic_req_2',
+            fromUserId: '12345678-1234-4567-8901-123456789003',
+            toUserId: '12345678-1234-4567-8901-123456789002',
+            fromUserName: 'Mike Johnson',
+            toUserName: 'Sarah Williams',
+            status: 'pending',
+            createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
+            updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
+            message: 'Hey! Interested in working on some 645 patterns together?'
+          }
+        );
+      }
 
       await AsyncStorage.setItem(this.CONNECTION_REQUESTS_KEY, JSON.stringify(demoRequests));
-      console.log('ConnectionService: Created demo connection requests for testing');
+      console.log(`🎯 Created ${demoRequests.length} realistic connection requests for cross-user testing`);
+      
+      if (demoRequests.length > 0) {
+        console.log('🎯 Demo requests created with IDs:');
+        demoRequests.forEach((req, index) => {
+          console.log(`   ${index + 1}. ${req.fromUserName} -> ${req.toUserName} (${req.fromUserId.slice(0, 8)}...)`);
+        });
+      }
+      
       return demoRequests;
     } catch (error) {
-      console.error('Error creating demo requests:', error);
+      console.error('Error creating realistic demo requests:', error);
       return [];
     }
   }
 
   /**
-   * Get connection requests for a specific user (received)
+   * Create test connection requests for the current user to receive (for debugging purposes)
+   */
+  static async createTestIncomingRequests(currentUserId: string, currentUserName: string): Promise<void> {
+    try {
+      console.log(`🧪 Creating test incoming requests for user: ${currentUserName} (${currentUserId})`);
+      
+      // SIMPLIFIED VERSION: Always create mock requests with proper UUIDs to avoid Supabase UUID errors
+      console.log('🧪 Creating simple mock users for test requests (avoiding UUID errors)');
+      
+      // Create some test requests from mock users with proper UUIDs
+      const testRequests: ConnectionRequest[] = [
+        {
+          id: this.generateUUID(),
+          fromUserId: this.generateUUID(), // Generate proper UUID instead of 'test_user_1'
+          toUserId: currentUserId,
+          fromUserName: 'Test User Alice',
+          toUserName: currentUserName || 'Unknown User',
+          status: 'pending',
+          createdAt: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
+          updatedAt: new Date(Date.now() - 30 * 60 * 1000),
+          message: `Hi ${currentUserName || 'there'}! I'd love to practice juggling together. Are you interested?`
+        },
+        {
+          id: this.generateUUID(),
+          fromUserId: this.generateUUID(), // Generate proper UUID instead of 'test_user_2'
+          toUserId: currentUserId,
+          fromUserName: 'Test User Bob',
+          toUserName: currentUserName || 'Unknown User',
+          status: 'pending',
+          createdAt: new Date(Date.now() - 60 * 60 * 1000), // 1 hour ago
+          updatedAt: new Date(Date.now() - 60 * 60 * 1000),
+          message: `Hey ${currentUserName || 'there'}! I saw your profile and think we could learn from each other. Want to connect?`
+        }
+      ];
+      
+      console.log(`🧪 Generated test requests:`, testRequests.map(r => ({ 
+        id: r.id, 
+        from: r.fromUserId,
+        to: r.toUserId,
+        fromName: r.fromUserName,
+        toName: r.toUserName
+      })));
+      
+      if (this.USE_SUPABASE && this.isSupabaseConfigured() && supabase) {
+        // Try to add to Supabase with proper error handling
+        try {
+          const supabaseRequests = testRequests.map(req => ({
+            id: req.id,
+            from_user_id: req.fromUserId,
+            to_user_id: req.toUserId,
+            from_user_name: req.fromUserName,
+            to_user_name: req.toUserName,
+            message: req.message,
+            status: req.status,
+            created_at: req.createdAt?.toISOString(),
+            updated_at: req.updatedAt?.toISOString()
+          }));
+          
+          console.log('🧪 Inserting to Supabase:', supabaseRequests);
+          
+          const { data, error } = await supabase
+            .from('connection_requests')
+            .insert(supabaseRequests);
+          
+          if (error) {
+            console.error('Error adding test requests to Supabase:', error);
+            // Fallback to local storage
+            const existingRequests = await this.getConnectionRequests();
+            const allRequests = [...existingRequests, ...testRequests];
+            await AsyncStorage.setItem(this.CONNECTION_REQUESTS_KEY, JSON.stringify(allRequests));
+            console.log('🧪 Fell back to local storage due to Supabase error');
+          } else {
+            console.log('🧪 Successfully added test requests to Supabase');
+          }
+        } catch (supabaseError) {
+          console.error('Supabase insertion failed:', supabaseError);
+          // Fallback to local storage
+          const existingRequests = await this.getConnectionRequests();
+          const allRequests = [...existingRequests, ...testRequests];
+          await AsyncStorage.setItem(this.CONNECTION_REQUESTS_KEY, JSON.stringify(allRequests));
+          console.log('🧪 Fell back to local storage due to Supabase exception');
+        }
+      } else {
+        // Add to local storage
+        const existingRequests = await this.getConnectionRequests();
+        const allRequests = [...existingRequests, ...testRequests];
+        await AsyncStorage.setItem(this.CONNECTION_REQUESTS_KEY, JSON.stringify(allRequests));
+        console.log('🧪 Successfully added test requests to local storage');
+      }
+      
+      console.log(`🧪 Created ${testRequests.length} test incoming requests for ${currentUserName}`);
+    } catch (error) {
+      console.error('Error creating test incoming requests:', error);
+    }
+  }
+
+  /**
+   * Get all connection requests for a specific user (received)
    */
   static async getConnectionRequestsForUser(userId: string): Promise<ConnectionRequest[]> {
     try {
       const allRequests = await this.getConnectionRequests();
-      const userRequests = allRequests.filter(req => req.toUserId === userId && req.status === 'pending');
       
-      console.log(`ConnectionService: Getting requests for user ${userId}`);
-      console.log(`ConnectionService: Total requests in storage: ${allRequests.length}`);
-      console.log(`ConnectionService: Requests for this user: ${userRequests.length}`);
-      console.log(`ConnectionService: User requests:`, userRequests.map(r => `${r.fromUserName} -> ${r.toUserName}`));
+      console.log(`🔍 DEBUG: Getting requests for user "${userId}" (length: ${userId.length})`);
+      console.log(`🔍 DEBUG: Total requests in storage: ${allRequests.length}`);
       
-      return userRequests;
+      // Enhanced debug: Log the exact user ID format and comparison
+      console.log(`🔍 DEBUG: Looking for incoming requests where toUserId === "${userId}"`);
+      
+      // First, let's see ALL requests that match the current user (both incoming and outgoing)
+      const incomingRequests = allRequests.filter(req => {
+        const isMatch = req.toUserId === userId && req.status === 'pending';
+        console.log(`🔍 DEBUG: Checking request: "${req.toUserId}" === "${userId}" && status="${req.status}" = ${isMatch}`);
+        return isMatch;
+      });
+      
+      const outgoingRequests = allRequests.filter(req => req.fromUserId === userId && req.status === 'pending');
+      const acceptedRequests = allRequests.filter(req => (req.toUserId === userId || req.fromUserId === userId) && req.status === 'accepted');
+      
+      console.log(`🔍 DEBUG: INCOMING requests (to user ${userId}): ${incomingRequests.length}`);
+      incomingRequests.forEach((req, index) => {
+        console.log(`  INCOMING ${index + 1}: ${req.fromUserName} -> ${req.toUserName} (${req.id})`);
+      });
+      
+      console.log(`🔍 DEBUG: OUTGOING requests (from user ${userId}): ${outgoingRequests.length}`);
+      outgoingRequests.forEach((req, index) => {
+        console.log(`  OUTGOING ${index + 1}: ${req.fromUserName} -> ${req.toUserName} (${req.id})`);
+      });
+      
+      console.log(`🔍 DEBUG: ACCEPTED requests (involving user ${userId}): ${acceptedRequests.length}`);
+      acceptedRequests.forEach((req, index) => {
+        console.log(`  ACCEPTED ${index + 1}: ${req.fromUserName} -> ${req.toUserName} (${req.id})`);
+      });
+      
+      // DEBUG: Log all requests to see their structure with detailed comparison
+      console.log('🔍 DEBUG: All requests structure:');
+      allRequests.forEach((req, index) => {
+        console.log(`  Request ${index + 1}:`);
+        console.log(`    ID: ${req.id}`);
+        console.log(`    fromUserId: "${req.fromUserId}" (length: ${req.fromUserId?.length || 'null'})`);
+        console.log(`    toUserId: "${req.toUserId}" (length: ${req.toUserId?.length || 'null'})`);
+        console.log(`    fromUserName: ${req.fromUserName}`);
+        console.log(`    toUserName: ${req.toUserName}`);
+        console.log(`    status: ${req.status}`);
+        console.log(`    toUserId === userId? ${req.toUserId === userId} (${typeof req.toUserId} vs ${typeof userId})`);
+        console.log(`    toUserId.trim() === userId.trim()? ${req.toUserId?.trim() === userId?.trim()}`);
+        console.log('    ---');
+      });
+      
+      // Additional check for case sensitivity and whitespace issues
+      const incomingRequestsFallback = allRequests.filter(req => {
+        const trimmedTo = req.toUserId?.trim();
+        const trimmedCurrent = userId?.trim();
+        return trimmedTo === trimmedCurrent && req.status === 'pending';
+      });
+      
+      console.log(`🔍 DEBUG: Fallback search (trimmed): ${incomingRequestsFallback.length} requests`);
+      
+      // Use the better result
+      const finalRequests = incomingRequests.length > 0 ? incomingRequests : incomingRequestsFallback;
+      
+      console.log(`🔍 DEBUG: Final requests for this user: ${finalRequests.length}`);
+      console.log(`🔍 DEBUG: Final user requests:`, finalRequests.map(r => `${r.fromUserName} -> ${r.toUserName}`));
+      
+      return finalRequests;
     } catch (error) {
       console.error('Error getting connection requests for user:', error);
       return [];
@@ -439,7 +681,7 @@ export class ConnectionService {
 
       // Create connection
       const connection: Connection = {
-        id: `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: this.generateUUID(),
         userId1: request.fromUserId,
         userId2: request.toUserId,
         userName1: request.fromUserName,
@@ -541,6 +783,36 @@ export class ConnectionService {
    */
   static async getConnections(): Promise<Connection[]> {
     try {
+      if (this.USE_SUPABASE && this.isSupabaseConfigured() && supabase) {
+        // Try to get connections from Supabase first
+        const { data: supabaseConnections, error } = await supabase
+          .from('connections')
+          .select('*')
+          .eq('status', 'active');
+
+        if (!error && supabaseConnections) {
+          console.log(`ConnectionService: Loaded ${supabaseConnections.length} connections from Supabase`);
+          
+          // Convert Supabase format to our format
+          const connections: Connection[] = supabaseConnections.map((conn: any) => ({
+            id: conn.id,
+            userId1: conn.user1_id,
+            userId2: conn.user2_id,
+            userName1: conn.user1_name,
+            userName2: conn.user2_name,
+            connectedAt: new Date(conn.created_at),
+            status: conn.status as 'active' | 'blocked'
+          }));
+
+          // Also store locally for offline access
+          await AsyncStorage.setItem(this.CONNECTIONS_KEY, JSON.stringify(connections));
+          return connections;
+        } else {
+          console.log('ConnectionService: Supabase connections query failed, using local storage');
+        }
+      }
+
+      // Fallback to local storage
       const stored = await AsyncStorage.getItem(this.CONNECTIONS_KEY);
       if (stored) {
         const connections = JSON.parse(stored);

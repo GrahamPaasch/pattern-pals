@@ -11,6 +11,8 @@ import {
   CacheService, 
   ConfigService 
 } from '../services';
+import { SyncService } from '../services/sync';
+import { supabase } from '../services/supabase';
 
 export interface AppHealthStatus {
   overall: 'healthy' | 'warning' | 'critical';
@@ -44,6 +46,31 @@ export interface HealthMetrics {
   screenChanges: number;
   userInteractions: number;
   backgroundTime: number;
+}
+
+async function checkConnectivity(): Promise<boolean> {
+  try {
+    return await SyncService.isOnline();
+  } catch {
+    return false;
+  }
+}
+
+async function getLastSyncTime(): Promise<Date | undefined> {
+  try {
+    // Check for a sync timestamp in storage or from the sync service
+    if (!supabase) return undefined;
+    
+    const { data } = await supabase
+      .from('users')
+      .select('updated_at')
+      .limit(1)
+      .order('updated_at', { ascending: false });
+    
+    return data?.[0]?.updated_at ? new Date(data[0].updated_at) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function useAppHealth() {
@@ -135,8 +162,8 @@ export function useAppHealth() {
           expiredItemsCount: cacheStats.expiredItems,
         },
         connectivity: {
-          isOnline: true, // TODO: Implement real connectivity check
-          lastSyncTime: undefined, // TODO: Get from sync service
+          isOnline: await checkConnectivity(),
+          lastSyncTime: await getLastSyncTime(),
         },
         memory: {
           warningThreshold: memoryWarningThreshold,

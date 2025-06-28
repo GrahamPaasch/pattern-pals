@@ -15,7 +15,7 @@ import { useAuth } from '../hooks/useAuth';
 
 type SignInScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  'SignIn'
+  'Welcome'
 >;
 
 interface Props {
@@ -23,25 +23,14 @@ interface Props {
 }
 
 export default function SignInScreen({ navigation }: Props) {
-  const { signIn } = useAuth();
+  // Note: SignIn functionality replaced by anonymous authentication
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSignIn = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await signIn(email, password);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to sign in');
-    } finally {
-      setLoading(false);
-    }
+    // Redirect to anonymous authentication
+    navigation.navigate('Welcome');
   };
 
   return (
@@ -91,7 +80,7 @@ export default function SignInScreen({ navigation }: Props) {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+          <TouchableOpacity onPress={() => navigation.navigate('Welcome')}>
             <Text style={styles.linkText}>Sign Up</Text>
           </TouchableOpacity>
         </View>

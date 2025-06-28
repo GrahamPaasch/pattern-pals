@@ -14,7 +14,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 
 type SignUpScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  'SignUp'
+  'Welcome'
 >;
 
 interface Props {
@@ -44,7 +44,8 @@ export default function SignUpScreen({ navigation }: Props) {
     }
 
     // Navigate to profile creation with email and password
-    navigation.navigate('ProfileCreation', { email, password });
+    // Redirect to anonymous authentication
+    navigation.navigate('Welcome');
   };
 
   return (
@@ -106,7 +107,7 @@ export default function SignUpScreen({ navigation }: Props) {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
+          <TouchableOpacity onPress={() => navigation.navigate('Welcome')}>
             <Text style={styles.linkText}>Sign In</Text>
           </TouchableOpacity>
         </View>

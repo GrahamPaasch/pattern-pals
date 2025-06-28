@@ -12,7 +12,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 
 type OnboardingScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  'Onboarding'
+  'Welcome'
 >;
 
 interface Props {
@@ -53,16 +53,16 @@ export default function OnboardingScreen({ navigation }: Props) {
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={styles.primaryButton}
-            onPress={() => navigation.navigate('SignUp')}
+            onPress={() => navigation.navigate('Welcome')}
           >
             <Text style={styles.primaryButtonText}>Get Started</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
             style={styles.secondaryButton}
-            onPress={() => navigation.navigate('SignIn')}
+            onPress={() => navigation.navigate('MainTabs')}
           >
-            <Text style={styles.secondaryButtonText}>I already have an account</Text>
+            <Text style={styles.secondaryButtonText}>Continue to App</Text>
           </TouchableOpacity>
         </View>
       </View>
