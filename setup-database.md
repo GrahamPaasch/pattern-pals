@@ -85,12 +85,6 @@ CREATE POLICY "Allow all operations on users" ON users FOR ALL USING (true);
 CREATE POLICY "Allow all operations on connection_requests" ON connection_requests FOR ALL USING (true);
 CREATE POLICY "Allow all operations on connections" ON connections FOR ALL USING (true);
 CREATE POLICY "Allow all operations on user_patterns" ON user_patterns FOR ALL USING (true);
-
--- Add test users for GRAHAM and PTRKASEMAN
-INSERT INTO users (name, email, experience, preferred_props, known_patterns, want_to_learn_patterns) VALUES
-  ('GRAHAM', 'graham@test.com', 'Intermediate', ARRAY['clubs'], ARRAY['6 Count', 'Walking Pass'], ARRAY['645', 'Custom Double Spin']),
-  ('PTRKASEMAN', 'peter@test.com', 'Advanced', ARRAY['clubs', 'balls'], ARRAY['6 Count', '645', 'Custom Double Spin'], ARRAY['Chocolate Bar', 'Benzene Ring'])
-ON CONFLICT (email) DO NOTHING;
 ```
 
 5. **Click "Run"** to execute the script
@@ -99,7 +93,6 @@ ON CONFLICT (email) DO NOTHING;
 ## After Running the SQL
 
 ✅ The error should be fixed
-✅ GRAHAM and PTRKASEMAN will be available for testing
 ✅ User search will work cross-device
 ✅ Connection requests will work properly
 
@@ -107,7 +100,7 @@ ON CONFLICT (email) DO NOTHING;
 
 1. Open your app
 2. Go to the "Search" tab
-3. Click "🔍 Debug: Show All Users" - you should see GRAHAM and PTRKASEMAN
+3. Click "🔍 Debug: Show All Users" - you should see your inserted users
 4. The backend status should show "🟢 Supabase"
 
 ---

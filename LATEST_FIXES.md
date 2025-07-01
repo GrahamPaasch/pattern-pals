@@ -36,7 +36,7 @@ if (!supabase) {
 
 ### Database Connection
 - ✅ Supabase connection working
-- ✅ Users table contains GRAHAM and PTRKASEMAN
+- ✅ Users table seeded correctly
 - ✅ Connection requests table ready
 - ✅ UUID generation working properly
 
@@ -56,7 +56,6 @@ if (!supabase) {
 2. **Verify Setup**:
    - Check backend status shows 🟢 Supabase
    - Test user search functionality
-   - Try searching for GRAHAM or PTRKASEMAN
 
 3. **Test Cross-Device**:
    - Have users sign up on different devices

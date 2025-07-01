@@ -1,8 +1,7 @@
 # 🚀 Quick Setup Guide for PatternPals Cross-Device Features
 
 ## Current Status
-Your PatternPals app is currently using **local storage** for user profiles and connection requests. This means:
-- ❌ Users can't find each other in the search (GRAHAM and PTRKASEMAN won't see each other)
+- ❌ Users can't find each other in the search
 - ❌ Connection requests are only visible on the device that sent them
 - ❌ No real-time sync between users on different devices
 
@@ -98,9 +97,8 @@ CREATE TRIGGER update_connection_requests_updated_at BEFORE UPDATE ON connection
 2. Run `npm start` again
 3. Check the app - you should now see "🟢 Supabase" in the backend status
 
-## ✅ You're Done!
-- **User Search**: GRAHAM and PTRKASEMAN can now find each other in the search tab
-- **Connection requests**: Work across devices and sync in real-time  
+- **User Search**: Users can now find each other in the search tab
+- **Connection requests**: Work across devices and sync in real-time
 - **Shared profiles**: All user profiles are visible to everyone
 - **Professional backend**: Using enterprise-grade Supabase infrastructure
 
