@@ -730,26 +730,7 @@ export class UserSearchService {
     ];
   }
 
-  /**
-   * Manually add a user for testing (useful when backend isn't set up yet)
-   */
-  static async addTestUser(name: string, experience: 'Beginner' | 'Intermediate' | 'Advanced' = 'Intermediate'): Promise<boolean> {
-    const testUser: UserProfile = {
-      id: `test_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-      name,
-      avatar: '',
-      experience,
-      preferredProps: ['clubs'],
-      location: 'Test Location',
-      lastActive: 'Just now',
-      bio: 'Test user for cross-device testing',
-      knownPatterns: ['6 Count', 'Walking Pass'],
-      wantToLearnPatterns: ['645', 'Custom Double Spin'],
-    };
 
-    console.log(`UserSearchService: Adding test user ${name}`);
-    return this.addOrUpdateUser(testUser);
-  }
 
   /**
    * Get current backend status for debugging

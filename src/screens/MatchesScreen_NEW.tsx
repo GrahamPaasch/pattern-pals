@@ -903,35 +903,7 @@ export default function MatchesScreen({}: MatchesScreenProps) {
               <Text style={styles.refreshButtonText}>🔍 Debug: Show All Users</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity 
-              style={[styles.refreshButton, { backgroundColor: '#10b981', marginTop: 8 }]}
-              onPress={async () => {
-                const success = await UserSearchService.addTestUser('GRAHAM', 'Intermediate');
-                if (success) {
-                  Alert.alert('Test User Added', 'GRAHAM has been added to the user list for testing');
-                  loadAllUsers(); // Refresh the user list
-                } else {
-                  Alert.alert('Error', 'Failed to add test user');
-                }
-              }}
-            >
-              <Text style={styles.refreshButtonText}>➕ Add Test User: GRAHAM</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.refreshButton, { backgroundColor: '#10b981', marginTop: 8 }]}
-              onPress={async () => {
-                const success = await UserSearchService.addTestUser('PTRKASEMAN', 'Advanced');
-                if (success) {
-                  Alert.alert('Test User Added', 'PTRKASEMAN has been added to the user list for testing');
-                  loadAllUsers(); // Refresh the user list
-                } else {
-                  Alert.alert('Error', 'Failed to add test user');
-                }
-              }}
-            >
-              <Text style={styles.refreshButtonText}>➕ Add Test User: PTRKASEMAN</Text>
-            </TouchableOpacity>
+
             
             <TouchableOpacity 
               style={[styles.refreshButton, { backgroundColor: '#dc2626', marginTop: 8 }]}

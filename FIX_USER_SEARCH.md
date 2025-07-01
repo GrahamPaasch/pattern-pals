@@ -1,17 +1,10 @@
 # 🚀 URGENT: Fix User Search Issue
 
-## Problem: GRAHAM and PTRKASEMAN can't find each other
+## Problem: Users can't find each other
 
 You're using demo Supabase credentials, so the app falls back to local storage. This means users are only stored on their own devices and can't see each other.
 
-## Quick Fix (1 minute) - For Immediate Testing:
 
-1. **On BOTH devices**, go to the **Search tab** in the app
-2. Click **"🔍 Debug: Show All Users"** - you'll see only demo users
-3. Click **"➕ Add Test User: GRAHAM"** on PTRKASEMAN's device
-4. Click **"➕ Add Test User: PTRKASEMAN"** on GRAHAM's device  
-5. Click **"🔍 Debug: Show All Users"** again - you should now see the test users
-6. Search for each other by typing the names
 
 ## Permanent Fix (5 minutes) - Real Backend:
 
