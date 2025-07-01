@@ -28,7 +28,7 @@ The Connect button now shows different states based on the relationship between 
 4. **"↗️ Respond"** (Blue `#3b82f6`)
    - Shown when the other user has sent a request
    - Enabled, clickable
-   - Directs user to check their Requests tab
+   - Directs user to check their Connection Requests tab
 
 ### 📱 Enhanced Visual Feedback
 - **Button Opacity**: Disabled buttons have 0.8 opacity for visual distinction
@@ -36,9 +36,9 @@ The Connect button now shows different states based on the relationship between 
 - **Color Coding**: Consistent color scheme across all connection states
 - **Dynamic Text Color**: Ensures readability on all button backgrounds
 
-### 🔔 Requests Tab Improvements
+### 🔔 Connection Requests Tab Improvements
 - **Badge Counter**: Shows number of pending incoming requests
-- **Auto-refresh**: Automatically reloads data when switching to Requests tab
+- **Auto-refresh**: Automatically reloads data when switching to the Connection Requests tab
 - **Real-time Updates**: Connection states update immediately after actions
 
 ### 💬 Enhanced Alert Messages
@@ -51,12 +51,12 @@ All alerts now include:
 - ✅ "Request Sent!" with detailed explanation
 - 🎉 "Connected!" with benefits explanation  
 - ⏳ "Request Pending" with wait instruction
-- 📥 "Respond to Request" with direction to Requests tab
+- 📥 "Respond to Request" with direction to Connection Requests tab
 
 ### 🔄 State Management
 - **Immediate Updates**: Button states change instantly after user actions
 - **Database Sync**: All changes are persisted to Supabase database
-- **Cross-screen Consistency**: States are consistent across Matches, Search, and Requests tabs
+- **Cross-screen Consistency**: States are consistent across Matches, Search, and Connection Requests tabs
 - **Auto-refresh Logic**: Data refreshes when switching between tabs
 
 ## 🛠️ Technical Implementation
@@ -99,7 +99,7 @@ const getConnectionButtonConfig = (userId: string) => {
 
 ✅ Connection states correctly tracked and displayed
 ✅ Button colors and text update appropriately  
-✅ Requests tab shows badge count for incoming requests
+✅ Connection Requests tab shows badge count for incoming requests
 ✅ Alert messages provide clear feedback with emojis
 ✅ Database updates persist across app sessions
 ✅ Cross-tab consistency maintained
@@ -129,7 +129,7 @@ The core connection feedback system is now complete and working! Optional future
 The PatternPals app now provides excellent UX/UI feedback for user connections:
 - ✅ Clear button states (Connect → Pending → Connected)
 - ✅ Color-coded visual feedback (Purple → Yellow → Green)
-- ✅ Badge counter on Requests tab
+- ✅ Badge counter on Connection Requests tab
 - ✅ Enhanced alert messages with emojis
 - ✅ Real-time state updates
 - ✅ Database persistence

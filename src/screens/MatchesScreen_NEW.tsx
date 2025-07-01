@@ -991,7 +991,7 @@ export default function MatchesScreen({}: MatchesScreenProps) {
             onPress={() => setSelectedTab('requests')}
           >
             <Text style={[styles.tabText, selectedTab === 'requests' && styles.activeTabText]}>
-              Requests ({connectionRequests.length})
+              Connection Requests ({connectionRequests.length})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
