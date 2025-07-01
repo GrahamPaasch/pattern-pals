@@ -63,7 +63,7 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
   // Reload connection data when switching to requests tab
   useEffect(() => {
     if (selectedTab === 'requests' && user) {
-      console.log('Requests tab selected, reloading connection data');
+      console.log('Connection Requests tab selected, reloading connection data');
       loadConnectionRequests();
       loadConnectionStates();
     }
@@ -334,7 +334,7 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
       return;
     }
     if (currentState === 'pending_in') {
-      Alert.alert('📥 Respond to Request', `${targetUser.name} has already sent you a connection request. Check your Requests tab to accept or decline it.`);
+      Alert.alert('📥 Respond to Request', `${targetUser.name} has already sent you a connection request. Check your Connection Requests tab to accept or decline it.`);
       return;
     }
 
@@ -717,7 +717,7 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
             onPress={() => setSelectedTab('requests')}
           >
             <Text style={[styles.tabText, selectedTab === 'requests' && styles.activeTabText]}>
-              Requests
+              Connection Requests
             </Text>
             {connectionRequests.length > 0 && (
               <View style={styles.badge}>

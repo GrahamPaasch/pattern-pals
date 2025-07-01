@@ -70,7 +70,7 @@ A cross-platform mobile app built with React Native and Expo that helps jugglers
 ### **👥 Matches Screen**
 - Browse compatible juggling partners
 - Match compatibility scores based on shared patterns
-- Filter between "Discover" and "Requests" tabs
+- Filter between "Discover" and "Connection Requests" tabs
 - Connect with other jugglers
 
 ### **📚 Patterns Screen**

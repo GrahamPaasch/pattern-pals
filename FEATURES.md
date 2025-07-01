@@ -35,7 +35,7 @@ PatternPals is now a **complete, functional mobile application** with all core f
 - **Shared Patterns**: See patterns you both know
 - **Learning Opportunities**: Find who can teach what you want to learn
 - **Profile Views**: Detailed partner information
-- **Connection Requests**: Send and receive practice invitations
+- **Connection Requests**: Send and receive requests to connect with other jugglers
 
 ### 📚 **Pattern Library**
 - **20+ Patterns**: Complete library of passing patterns
