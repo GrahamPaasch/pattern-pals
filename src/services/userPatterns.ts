@@ -8,10 +8,6 @@ export class UserPatternService {
   private static STORAGE_KEY = 'user_patterns';
   private static USE_SUPABASE = true; // Enable Supabase backend (will fallback to local if not configured)
 
-export class UserPatternService {
-  private static STORAGE_KEY = 'user_patterns';
-  private static USE_SUPABASE = true; // Enable Supabase backend (will fallback to local if not configured)
-
   /**
    * Check if Supabase is properly configured
    */
