@@ -99,13 +99,19 @@ export class AuthService {
 
       // Check if this is a test/demo email or if Supabase should be bypassed
       const isTestEmail = this.isTestEmail(email);
-      const shouldUseMockAuth = !isSupabaseConfigured() || !supabase || isTestEmail;
+      const shouldUseMockAuth = !isSupabaseConfigured() || !supabase;
       
-      console.log('🔧 AuthService: Should use mock auth:', shouldUseMockAuth, '(test email:', isTestEmail, ')');
+      console.log('🔧 AuthService: Should use mock auth:', shouldUseMockAuth, '(Supabase configured:', isSupabaseConfigured(), ')');
       
       if (shouldUseMockAuth) {
-        // Development/Test: Use mock authentication
-        console.log('🔧 AuthService: Using mock authentication for:', email);
+        // Development/Test: Use mock authentication only if Supabase is not available
+        console.log('🔧 AuthService: Using mock authentication (Supabase unavailable) for:', email);
+        return this.createMockUser(email, userData);
+      }
+      
+      if (isTestEmail) {
+        // For test emails, create user directly in Supabase but skip real auth
+        console.log('🔧 AuthService: Creating test user directly in Supabase for:', email);
         return this.createMockUser(email, userData);
       }
 

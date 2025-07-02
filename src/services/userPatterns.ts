@@ -1,17 +1,70 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase, isSupabaseConfigured } from './supabase';
 import { PatternStatus, UserPattern } from '../types';
 import { SyncService } from './sync';
 import { RealTimeSyncService } from './realTimeSync';
 
 export class UserPatternService {
   private static STORAGE_KEY = 'user_patterns';
+  private static USE_SUPABASE = true; // Enable Supabase backend (will fallback to local if not configured)
+
+export class UserPatternService {
+  private static STORAGE_KEY = 'user_patterns';
+  private static USE_SUPABASE = true; // Enable Supabase backend (will fallback to local if not configured)
+
+  /**
+   * Check if Supabase is properly configured
+   */
+  private static isSupabaseConfigured(): boolean {
+    return isSupabaseConfigured() === true;
+  }
 
   /**
    * Get all pattern statuses for a user
    */
   static async getUserPatterns(userId: string): Promise<UserPattern[]> {
     try {
-      // For demo, get from AsyncStorage
+      if (this.USE_SUPABASE && this.isSupabaseConfigured() && supabase) {
+        console.log('UserPatternService: Using Supabase backend for getUserPatterns');
+        // Use Supabase for real backend
+        const { data, error } = await supabase
+          .from('user_patterns')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Supabase error getting user patterns:', error);
+          console.log('UserPatternService: Falling back to local storage due to Supabase error');
+          return this.getUserPatternsLocal(userId);
+        }
+
+        const patterns = data.map((item: any) => ({
+          userId: item.user_id,
+          patternId: item.pattern_id,
+          status: item.status as PatternStatus,
+          updatedAt: new Date(item.created_at)
+        }));
+
+        console.log(`UserPatternService: Loaded ${patterns.length} patterns from Supabase for user ${userId}`);
+        return patterns;
+      } else {
+        // Fallback to AsyncStorage for development/testing
+        console.log('UserPatternService: Using local storage for patterns (Supabase not configured or disabled)');
+        return this.getUserPatternsLocal(userId);
+      }
+    } catch (error) {
+      console.error('Error in getUserPatterns:', error);
+      console.log('UserPatternService: Falling back to local storage due to error');
+      return this.getUserPatternsLocal(userId);
+    }
+  }
+
+  /**
+   * Get user patterns from local storage (fallback)
+   */
+  private static async getUserPatternsLocal(userId: string): Promise<UserPattern[]> {
+    try {
       const key = `${this.STORAGE_KEY}_${userId}`;
       const storedData = await AsyncStorage.getItem(key);
       
@@ -27,7 +80,7 @@ export class UserPatternService {
 
       return [];
     } catch (error) {
-      console.error('Error in getUserPatterns:', error);
+      console.error('Error in getUserPatternsLocal:', error);
       return [];
     }
   }

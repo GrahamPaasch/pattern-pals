@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase, isSupabaseConfigured } from './supabase';
 import { Notification } from '../types';
 
 export interface LocalNotification {
   id: string;
-  type: 'new_match' | 'session_reminder' | 'session_invite' | 'workshop_announcement';
+  type: 'new_match' | 'session_reminder' | 'session_invite' | 'workshop_announcement' | 'connection_request';
   title: string;
   message: string;
   read: boolean;
@@ -13,11 +14,58 @@ export interface LocalNotification {
 
 export class NotificationService {
   private static STORAGE_KEY = 'user_notifications';
+  private static USE_SUPABASE = true; // Enable Supabase backend (will fallback to local if not configured)
+
+  /**
+   * Check if Supabase is properly configured
+   */
+  private static isSupabaseConfigured(): boolean {
+    return isSupabaseConfigured() === true;
+  }
 
   /**
    * Get all notifications for a user
    */
   static async getUserNotifications(userId: string): Promise<LocalNotification[]> {
+    try {
+      if (this.USE_SUPABASE && this.isSupabaseConfigured() && supabase) {
+        console.log('NotificationService: Using Supabase backend for getUserNotifications');
+        // Use Supabase for real backend
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('NotificationService: Supabase error (table may not exist), falling back to local:', error.message);
+          return this.getUserNotificationsLocal(userId);
+        }
+
+        // Convert Supabase data to LocalNotification format
+        return data.map(item => ({
+          id: item.id,
+          type: item.type as LocalNotification['type'],
+          title: item.title,
+          message: item.message,
+          read: item.read,
+          createdAt: new Date(item.created_at),
+          relatedId: item.related_id
+        }));
+      } else {
+        console.log('NotificationService: Using local storage fallback');
+        return this.getUserNotificationsLocal(userId);
+      }
+    } catch (error) {
+      console.error('Error in getUserNotifications:', error);
+      return this.getUserNotificationsLocal(userId);
+    }
+  }
+
+  /**
+   * Get notifications from local storage (fallback)
+   */
+  private static async getUserNotificationsLocal(userId: string): Promise<LocalNotification[]> {
     try {
       const key = `${this.STORAGE_KEY}_${userId}`;
       const storedData = await AsyncStorage.getItem(key);
@@ -33,7 +81,7 @@ export class NotificationService {
       // Return some default notifications for demo
       return this.getDefaultNotifications();
     } catch (error) {
-      console.error('Error in getUserNotifications:', error);
+      console.error('Error in getUserNotificationsLocal:', error);
       return this.getDefaultNotifications();
     }
   }
@@ -46,7 +94,45 @@ export class NotificationService {
     notification: Omit<LocalNotification, 'id' | 'createdAt'>
   ): Promise<boolean> {
     try {
-      const existingNotifications = await this.getUserNotifications(userId);
+      if (this.USE_SUPABASE && this.isSupabaseConfigured() && supabase) {
+        console.log('NotificationService: Adding notification to Supabase');
+        // Add to Supabase
+        const { error } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: userId,
+            type: notification.type,
+            title: notification.title,
+            message: notification.message,
+            read: notification.read,
+            related_id: notification.relatedId
+          });
+
+        if (error) {
+          console.error('NotificationService: Supabase error, falling back to local:', error);
+          return this.addNotificationLocal(userId, notification);
+        }
+
+        return true;
+      } else {
+        console.log('NotificationService: Adding notification to local storage');
+        return this.addNotificationLocal(userId, notification);
+      }
+    } catch (error) {
+      console.error('Error in addNotification:', error);
+      return this.addNotificationLocal(userId, notification);
+    }
+  }
+
+  /**
+   * Add notification to local storage (fallback)
+   */
+  private static async addNotificationLocal(
+    userId: string,
+    notification: Omit<LocalNotification, 'id' | 'createdAt'>
+  ): Promise<boolean> {
+    try {
+      const existingNotifications = await this.getUserNotificationsLocal(userId);
       
       const newNotification: LocalNotification = {
         ...notification,
@@ -71,7 +157,36 @@ export class NotificationService {
    */
   static async markAsRead(userId: string, notificationId: string): Promise<boolean> {
     try {
-      const notifications = await this.getUserNotifications(userId);
+      if (this.USE_SUPABASE && this.isSupabaseConfigured() && supabase) {
+        console.log('NotificationService: Marking notification as read in Supabase');
+        const { error } = await supabase
+          .from('notifications')
+          .update({ read: true })
+          .eq('id', notificationId)
+          .eq('user_id', userId);
+
+        if (error) {
+          console.error('NotificationService: Supabase error, falling back to local:', error);
+          return this.markAsReadLocal(userId, notificationId);
+        }
+
+        return true;
+      } else {
+        console.log('NotificationService: Marking notification as read in local storage');
+        return this.markAsReadLocal(userId, notificationId);
+      }
+    } catch (error) {
+      console.error('Error in markAsRead:', error);
+      return this.markAsReadLocal(userId, notificationId);
+    }
+  }
+
+  /**
+   * Mark notification as read in local storage (fallback)
+   */
+  private static async markAsReadLocal(userId: string, notificationId: string): Promise<boolean> {
+    try {
+      const notifications = await this.getUserNotificationsLocal(userId);
       const updatedNotifications = notifications.map(notification =>
         notification.id === notificationId
           ? { ...notification, read: true }
@@ -83,7 +198,7 @@ export class NotificationService {
       
       return true;
     } catch (error) {
-      console.error('Error in markAsRead:', error);
+      console.error('Error in markAsReadLocal:', error);
       return false;
     }
   }
@@ -93,7 +208,36 @@ export class NotificationService {
    */
   static async markAllAsRead(userId: string): Promise<boolean> {
     try {
-      const notifications = await this.getUserNotifications(userId);
+      if (this.USE_SUPABASE && this.isSupabaseConfigured() && supabase) {
+        console.log('NotificationService: Marking all notifications as read in Supabase');
+        const { error } = await supabase
+          .from('notifications')
+          .update({ read: true })
+          .eq('user_id', userId)
+          .eq('read', false);
+
+        if (error) {
+          console.error('NotificationService: Supabase error, falling back to local:', error);
+          return this.markAllAsReadLocal(userId);
+        }
+
+        return true;
+      } else {
+        console.log('NotificationService: Marking all notifications as read in local storage');
+        return this.markAllAsReadLocal(userId);
+      }
+    } catch (error) {
+      console.error('Error in markAllAsRead:', error);
+      return this.markAllAsReadLocal(userId);
+    }
+  }
+
+  /**
+   * Mark all notifications as read in local storage (fallback)
+   */
+  private static async markAllAsReadLocal(userId: string): Promise<boolean> {
+    try {
+      const notifications = await this.getUserNotificationsLocal(userId);
       const updatedNotifications = notifications.map(notification => ({
         ...notification,
         read: true
