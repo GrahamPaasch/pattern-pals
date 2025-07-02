@@ -6,6 +6,7 @@
 
 import { supabase, isSupabaseConfigured } from './supabase';
 import { NotificationService } from './notifications';
+import { PushNotificationService } from './pushNotificationService'; // Add this import
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface RealTimeEvent {
@@ -91,7 +92,7 @@ export class RealTimeSyncService {
           
           // Create instant notification
           await NotificationService.addNotification(userId, {
-            type: 'new_match',
+            type: 'connection_request',
             title: 'New Connection Request!',
             message: `${request.from_user_name} wants to connect with you`,
             read: false,
@@ -408,6 +409,256 @@ export class RealTimeSyncService {
       console.log(`RealTimeSync: Broadcasted connection request from ${fromUserName} to ${toUserName}`);
     } catch (error) {
       console.error('RealTimeSync: Failed to broadcast connection request', error);
+    }
+  }
+
+  /**
+   * Enhanced connection request broadcasting with instant delivery
+   */
+  static async broadcastConnectionRequestInstant(
+    fromUserId: string,
+    fromUserName: string,
+    toUserId: string,
+    toUserName: string
+  ): Promise<void> {
+    try {
+      console.log(`🚀 Broadcasting INSTANT connection request from ${fromUserName} to ${toUserName}`);
+
+      // Create instant high-priority notification
+      const notificationData = {
+        type: 'connection_request' as const,
+        userId: toUserId,
+        title: 'New Connection Request! 🤝',
+        body: `${fromUserName} wants to connect with you. They share similar juggling interests!`,
+        data: {
+          type: 'connection_request',
+          fromUserId,
+          fromUserName,
+          toUserId,
+          timestamp: new Date().toISOString()
+        },
+        priority: 'high' as const,
+        sound: 'default',
+        badge: 1
+      };
+
+      // Send via instant notification system
+      const success = await PushNotificationService.sendInstantNotification(toUserId, notificationData);
+      
+      if (success) {
+        console.log(`🚀 Instant connection request delivered to ${toUserName}`);
+      } else {
+        console.log(`⚠️ Falling back to standard notification for ${toUserName}`);
+        // Fallback to regular notification system
+        await NotificationService.addNotification(toUserId, {
+          type: 'connection_request',
+          title: 'New Connection Request!',
+          message: `${fromUserName} wants to connect with you`,
+          read: false,
+          relatedId: fromUserId
+        });
+      }
+      
+    } catch (error) {
+      console.error('RealTimeSync: Failed to broadcast instant connection request', error);
+      
+      // Always ensure notification is delivered somehow
+      await this.broadcastConnectionRequest(fromUserId, fromUserName, toUserId, toUserName);
+    }
+  }
+
+  /**
+   * Enhanced pattern learning broadcast with instant notifications
+   */
+  static async broadcastPatternLearnedInstant(
+    userId: string, 
+    userName: string, 
+    patternName: string
+  ): Promise<void> {
+    if (!isSupabaseConfigured() || !supabase) {
+      console.log('🔔 RealTimeSync: Broadcasting pattern learning locally (Supabase not configured)');
+      await this.broadcastPatternLearnedLocal(userId, userName, patternName);
+      return;
+    }
+
+    try {
+      // Get all friends/connections of this user
+      const { data: connections } = await supabase
+        .from('connections')
+        .select('user1_id, user2_id, user1_name, user2_name')
+        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+        .eq('status', 'active');
+
+      if (connections && connections.length > 0) {
+        console.log(`🎉 Broadcasting INSTANT "${userName} learned ${patternName}" to ${connections.length} friends`);
+        
+        // Create instant notifications for all friends
+        const notificationPromises = connections.map(async (connection) => {
+          const friendId = connection.user1_id === userId ? connection.user2_id : connection.user1_id;
+          
+          const notificationData = {
+            type: 'pattern_learned' as const,
+            userId: friendId,
+            title: 'Friend Achievement! 🎯',
+            body: `${userName} just mastered "${patternName}"! Send congratulations or ask for tips.`,
+            data: {
+              type: 'pattern_learned',
+              achieverUserId: userId,
+              achieverName: userName,
+              patternName,
+              timestamp: new Date().toISOString()
+            },
+            priority: 'normal' as const,
+            sound: 'achievement'
+          };
+
+          // Send instant notification
+          return PushNotificationService.sendInstantNotification(friendId, notificationData);
+        });
+
+        const results = await Promise.allSettled(notificationPromises);
+        const successCount = results.filter(r => r.status === 'fulfilled' && r.value).length;
+        
+        console.log(`🎉 Instant notifications sent: ${successCount}/${connections.length} successful`);
+        
+        // Also broadcast to activity listeners for real-time UI updates
+        const activity: UserActivity = {
+          userId,
+          userName,
+          type: 'pattern_learned',
+          message: `${userName} just learned "${patternName}"! 🎯`,
+          timestamp: new Date(),
+          patternName,
+          metadata: { patternId: patternName }
+        };
+        
+        this.activityCallbacks.forEach(callback => callback(activity));
+      }
+    } catch (error) {
+      console.error('🔔 Error in instant pattern broadcast:', error);
+      // Fallback to standard broadcast
+      await this.broadcastPatternLearned(userId, userName, patternName);
+    }
+  }
+
+  /**
+   * Real-time session reminder with instant delivery
+   */
+  static async sendInstantSessionReminder(
+    userId: string,
+    partnerName: string,
+    sessionTime: Date,
+    minutesUntil: number
+  ): Promise<void> {
+    try {
+      const isUrgent = minutesUntil <= 15; // Urgent if 15 minutes or less
+      
+      const notificationData = {
+        type: 'session_reminder' as const,
+        userId,
+        title: isUrgent ? '⏰ Session Starting Soon!' : '📅 Session Reminder',
+        body: `Your practice session with ${partnerName} ${isUrgent ? 'starts' : 'is'} in ${minutesUntil} minutes`,
+        data: {
+          type: 'session_reminder',
+          partnerName,
+          sessionTime: sessionTime.toISOString(),
+          minutesUntil,
+          isUrgent
+        },
+        priority: isUrgent ? 'high' as const : 'normal' as const,
+        sound: isUrgent ? 'urgent' : 'default',
+        badge: 1
+      };
+
+      const success = await PushNotificationService.sendInstantNotification(userId, notificationData);
+      
+      if (success) {
+        console.log(`⏰ Instant session reminder delivered to user ${userId}`);
+      } else {
+        // Fallback to regular notification
+        await NotificationService.addNotification(userId, {
+          type: 'session_reminder',
+          title: notificationData.title,
+          message: notificationData.body,
+          read: false
+        });
+      }
+      
+    } catch (error) {
+      console.error('⏰ Error sending instant session reminder:', error);
+    }
+  }
+
+  /**
+   * Broadcast urgent announcements to all users
+   */
+  static async broadcastUrgentAnnouncement(
+    title: string,
+    message: string,
+    targetUserIds?: string[]
+  ): Promise<{ success: number; failed: number }> {
+    try {
+      let userIds: string[] = [];
+      
+      if (targetUserIds) {
+        userIds = targetUserIds;
+      } else if (isSupabaseConfigured() && supabase) {
+        // Get all active users
+        const { data: users } = await supabase
+          .from('users')
+          .select('id')
+          .eq('is_active', true);
+        
+        userIds = users ? users.map(u => u.id) : [];
+      }
+
+      if (userIds.length === 0) {
+        console.log('📢 No users to broadcast to');
+        return { success: 0, failed: 0 };
+      }
+
+      console.log(`📢 Broadcasting urgent announcement to ${userIds.length} users`);
+
+      const notificationData = {
+        type: 'workshop_announcement' as const,
+        userId: '', // Will be set per user
+        title: `📢 ${title}`,
+        body: message,
+        data: {
+          type: 'urgent_announcement',
+          title,
+          message,
+          timestamp: new Date().toISOString()
+        },
+        priority: 'high' as const,
+        sound: 'announcement'
+      };
+
+      const broadcastPromises = userIds.map(async (userId) => {
+        const userNotification = { ...notificationData, userId };
+        return PushNotificationService.broadcastToAllUserDevices(userId, userNotification);
+      });
+
+      const results = await Promise.allSettled(broadcastPromises);
+      
+      let totalSuccess = 0;
+      let totalFailed = 0;
+      
+      results.forEach(result => {
+        if (result.status === 'fulfilled') {
+          totalSuccess += result.value.success;
+          totalFailed += result.value.failed;
+        } else {
+          totalFailed++;
+        }
+      });
+
+      console.log(`📢 Urgent announcement broadcast: ${totalSuccess} delivered, ${totalFailed} failed`);
+      return { success: totalSuccess, failed: totalFailed };
+      
+    } catch (error) {
+      console.error('📢 Error broadcasting urgent announcement:', error);
+      return { success: 0, failed: 1 };
     }
   }
 

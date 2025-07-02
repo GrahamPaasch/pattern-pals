@@ -15,6 +15,25 @@ export interface LocalNotification {
 export class NotificationService {
   private static STORAGE_KEY = 'user_notifications';
   private static USE_SUPABASE = true; // Enable Supabase backend (will fallback to local if not configured)
+  private static pushNotificationService: any = null;
+
+  /**
+   * Initialize notification service with push notification support
+   */
+  static async initialize(userId: string): Promise<void> {
+    try {
+      // Dynamically import push notification service to avoid circular dependencies
+      const { PushNotificationService } = await import('./pushNotificationService');
+      this.pushNotificationService = PushNotificationService;
+      
+      // Initialize push notifications
+      await PushNotificationService.initialize(userId);
+      
+      console.log('📱 NotificationService: Initialized with push notification support');
+    } catch (error) {
+      console.error('📱 NotificationService: Failed to initialize push notifications', error);
+    }
+  }
 
   /**
    * Check if Supabase is properly configured
@@ -87,13 +106,16 @@ export class NotificationService {
   }
 
   /**
-   * Add a new notification
+   * Add a new notification with push delivery
    */
   static async addNotification(
     userId: string,
     notification: Omit<LocalNotification, 'id' | 'createdAt'>
   ): Promise<boolean> {
     try {
+      let success = false;
+
+      // Add to local/database storage first
       if (this.USE_SUPABASE && this.isSupabaseConfigured() && supabase) {
         console.log('NotificationService: Adding notification to Supabase');
         // Add to Supabase
@@ -110,17 +132,61 @@ export class NotificationService {
 
         if (error) {
           console.error('NotificationService: Supabase error, falling back to local:', error);
-          return this.addNotificationLocal(userId, notification);
+          success = await this.addNotificationLocal(userId, notification);
+        } else {
+          success = true;
         }
-
-        return true;
       } else {
         console.log('NotificationService: Adding notification to local storage');
-        return this.addNotificationLocal(userId, notification);
+        success = await this.addNotificationLocal(userId, notification);
       }
+
+      // Send push notification if local storage succeeded
+      if (success && this.pushNotificationService) {
+        try {
+          await this.pushNotificationService.sendPushNotification(userId, {
+            type: notification.type,
+            userId: userId,
+            title: notification.title,
+            body: notification.message,
+            data: {
+              type: notification.type,
+              relatedId: notification.relatedId,
+              notificationId: notification.relatedId || Date.now().toString()
+            },
+            priority: this.getPushPriority(notification.type),
+            sound: 'default'
+          });
+          console.log('📱 Push notification sent for:', notification.title);
+        } catch (pushError) {
+          console.error('📱 Failed to send push notification:', pushError);
+          // Don't fail the whole operation if push fails
+        }
+      }
+
+      return success;
     } catch (error) {
       console.error('Error in addNotification:', error);
       return this.addNotificationLocal(userId, notification);
+    }
+  }
+
+  /**
+   * Get push notification priority based on type
+   */
+  private static getPushPriority(type: LocalNotification['type']): 'default' | 'normal' | 'high' | 'max' {
+    switch (type) {
+      case 'session_reminder':
+        return 'high';
+      case 'connection_request':
+      case 'new_match':
+        return 'high';
+      case 'session_invite':
+        return 'normal';
+      case 'workshop_announcement':
+        return 'normal';
+      default:
+        return 'default';
     }
   }
 
@@ -329,6 +395,89 @@ export class NotificationService {
   }
 
   /**
+   * Send batch notifications with push delivery
+   */
+  static async sendBatchNotifications(
+    notifications: Array<{
+      userId: string;
+      notification: Omit<LocalNotification, 'id' | 'createdAt'>;
+    }>
+  ): Promise<{ success: number; failed: number }> {
+    const results = { success: 0, failed: 0 };
+
+    try {
+      // Process notifications in batches
+      const batchSize = 10;
+      for (let i = 0; i < notifications.length; i += batchSize) {
+        const batch = notifications.slice(i, i + batchSize);
+        
+        const batchPromises = batch.map(async ({ userId, notification }) => {
+          const success = await this.addNotification(userId, notification);
+          if (success) {
+            results.success++;
+          } else {
+            results.failed++;
+          }
+        });
+
+        await Promise.all(batchPromises);
+      }
+
+      console.log(`📱 Batch notifications: ${results.success} sent, ${results.failed} failed`);
+    } catch (error) {
+      console.error('Error in sendBatchNotifications:', error);
+    }
+
+    return results;
+  }
+
+  /**
+   * Schedule a notification for later delivery
+   */
+  static async scheduleNotification(
+    userId: string,
+    notification: Omit<LocalNotification, 'id' | 'createdAt'>,
+    scheduledFor: Date
+  ): Promise<string | null> {
+    try {
+      if (!this.pushNotificationService) {
+        console.warn('📱 Push notification service not available for scheduling');
+        return null;
+      }
+
+      return await this.pushNotificationService.scheduleNotification({
+        type: notification.type,
+        userId: userId,
+        title: notification.title,
+        body: notification.message,
+        data: {
+          type: notification.type,
+          relatedId: notification.relatedId,
+        },
+        priority: this.getPushPriority(notification.type),
+      }, scheduledFor);
+    } catch (error) {
+      console.error('Error scheduling notification:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update badge count based on unread notifications
+   */
+  static async updateBadgeCount(userId: string): Promise<void> {
+    try {
+      const unreadCount = await this.getUnreadCount(userId);
+      
+      if (this.pushNotificationService) {
+        await this.pushNotificationService.updateBadgeCount(unreadCount);
+      }
+    } catch (error) {
+      console.error('Error updating badge count:', error);
+    }
+  }
+
+  /**
    * Simulate new match notification
    */
   static async notifyNewMatch(
@@ -374,5 +523,14 @@ export class NotificationService {
       message: `${inviterName} invited you to practice ${sessionDetails}`,
       read: false,
     });
+  }
+
+  /**
+   * Cleanup notification service
+   */
+  static cleanup(): void {
+    if (this.pushNotificationService) {
+      this.pushNotificationService.cleanup();
+    }
   }
 }
