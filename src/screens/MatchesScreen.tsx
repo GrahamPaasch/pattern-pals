@@ -414,6 +414,33 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
     }
   };
 
+  const handleMessageUser = async (targetUser: UserProfile) => {
+    if (!user || !userProfile) {
+      Alert.alert('Error', 'You must be logged in to send messages.');
+      return;
+    }
+
+    try {
+      // Get or create conversation and navigate to chat
+      const { ChatService } = await import('../services/chatService');
+      const conversationId = await ChatService.getOrCreateConversation(user.id, targetUser.id);
+      
+      navigation.navigate('ChatDetail', {
+        conversationId,
+        recipientId: targetUser.id,
+        recipientName: targetUser.name
+      });
+
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+      Alert.alert(
+        'Error',
+        'Unable to start conversation. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
   const getConnectionButtonConfig = (userId: string) => {
     const state = connectionStates.get(userId) || 'none';
     
@@ -460,9 +487,9 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
     const targetKnown = new Set(profile.knownPatterns);
     const targetWantToLearn = new Set(profile.wantToLearnPatterns);
 
-    const sharedPatterns = [...userKnown].filter(pattern => targetKnown.has(pattern));
-    const canTeach = [...targetKnown].filter(pattern => userWantToLearn.has(pattern));
-    const canLearn = [...userKnown].filter(pattern => targetWantToLearn.has(pattern));
+    const sharedPatterns = Array.from(userKnown).filter(pattern => targetKnown.has(pattern));
+    const canTeach = Array.from(targetKnown).filter(pattern => userWantToLearn.has(pattern));
+    const canLearn = Array.from(userKnown).filter(pattern => targetWantToLearn.has(pattern));
 
     navigation.navigate('UserProfileView', {
       userId: profile.id,
@@ -575,21 +602,32 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
           )}
         </View>
         
-        <TouchableOpacity
-          style={[
-            styles.connectButton, 
-            { 
-              backgroundColor: buttonConfig.color,
-              opacity: buttonConfig.disabled ? 0.8 : 1.0
-            }
-          ]}
-          onPress={() => handleConnect(item)}
-          disabled={buttonConfig.disabled}
-        >
-          <Text style={[styles.connectButtonText, { color: buttonConfig.textColor }]}>
-            {buttonConfig.text}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.matchActions}>
+          <TouchableOpacity
+            style={[
+              styles.connectButton, 
+              { 
+                backgroundColor: buttonConfig.color,
+                opacity: buttonConfig.disabled ? 0.8 : 1.0
+              }
+            ]}
+            onPress={() => handleConnect(item)}
+            disabled={buttonConfig.disabled}
+          >
+            <Text style={[styles.connectButtonText, { color: buttonConfig.textColor }]}>
+              {buttonConfig.text}
+            </Text>
+          </TouchableOpacity>
+          
+          {buttonConfig.text === '✓ Connected' && (
+            <TouchableOpacity
+              style={styles.messageButton}
+              onPress={() => handleMessageUser(item)}
+            >
+              <Text style={styles.messageButtonText}>💬 Message</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -632,6 +670,15 @@ export default function MatchesScreen({ navigation }: MatchesScreenProps) {
                 {buttonConfig.text}
               </Text>
             </TouchableOpacity>
+            
+            {buttonConfig.text === '✓ Connected' && (
+              <TouchableOpacity
+                style={styles.messageButtonSmall}
+                onPress={() => handleMessageUser(item)}
+              >
+                <Text style={styles.messageButtonSmallText}>💬</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
         
@@ -1175,5 +1222,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#ffffff',
     fontWeight: '500',
+  },
+  matchActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  messageButton: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+  },
+  messageButtonText: {
+    fontSize: 14,
+    color: '#6366f1',
+    fontWeight: '500',
+  },
+  messageButtonSmall: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messageButtonSmallText: {
+    fontSize: 12,
+    color: '#6366f1',
   },
 });

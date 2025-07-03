@@ -6,6 +6,38 @@
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "skipLibCheck": true
-  }
+    "skipLibCheck": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "moduleResolution": "bundler",
+    "forceConsistentCasingInFileNames": true,
+    "target": "ES2020",
+    "lib": ["ES2020"],
+    "module": "ESNext"
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.jsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js",
+    "**/*.config.js",
+    "**/test-*.js",
+    "**/debug-*.js",
+    "**/fix-*.js",
+    "**/backend-*.js",
+    "**/clear-*.js",
+    "**/comprehensive-*.js",
+    "**/final-*.js",
+    "**/populate-*.js",
+    "**/run-*.js",
+    "**/security-*.js",
+    "**/*.test.js",
+    "**/*.spec.js"
+  ]
 }

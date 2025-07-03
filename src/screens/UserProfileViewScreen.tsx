@@ -113,12 +113,49 @@ export default function UserProfileViewScreen({ route, navigation }: UserProfile
     );
   };
 
-  const handleMessage = () => {
-    Alert.alert(
-      'Feature Coming Soon',
-      'Direct messaging will be available once you\'re connected with other jugglers.',
-      [{ text: 'OK' }]
-    );
+  const handleMessage = async () => {
+    if (!user || !userProfile) {
+      Alert.alert('Error', 'You must be logged in to send messages.');
+      return;
+    }
+
+    try {
+      // Check if users are connected first
+      const { ConnectionService } = await import('../services/connections');
+      const connections = await ConnectionService.getConnectionsForUser(user.id);
+      const isConnected = connections.some(conn => 
+        (conn.userId1 === user.id && conn.userId2 === userId) ||
+        (conn.userId1 === userId && conn.userId2 === user.id)
+      );
+
+      if (!isConnected) {
+        Alert.alert(
+          'Not Connected',
+          'You need to connect with this user before you can send them messages.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Navigate to chat or create new conversation
+      const { ChatService } = await import('../services/chatService');
+      const conversationId = await ChatService.getOrCreateConversation(user.id, userId);
+      
+      // Navigate to ChatDetail screen
+      navigation.navigate('ChatDetail', {
+        conversationId,
+        recipientId: userId,
+        recipientName: name
+      });
+
+    } catch (error) {
+      console.error('Error starting conversation:', error);
+      Alert.alert(
+        'Error',
+        'Unable to start conversation. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const handleScheduleSession = () => {

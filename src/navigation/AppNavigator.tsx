@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../hooks/useAuth';
+import { useChat } from '../hooks/useChat';
 
 // Screens
 import WelcomeScreen from '../screens/WelcomeScreen';
@@ -24,6 +25,8 @@ import PatternContributionScreen from '../screens/PatternContributionScreen';
 import UserProfileViewScreen from '../screens/UserProfileViewScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import DebugScreen from '../screens/DebugScreen';
+import ChatScreen from '../screens/ChatScreen';
+import ChatDetailScreen from '../screens/ChatDetailScreen';
 
 export type RootStackParamList = {
   Welcome: undefined;
@@ -40,6 +43,12 @@ export type RootStackParamList = {
   SupportChat: undefined;
   PatternContribution: undefined;
   Schedule: undefined;
+  Chat: undefined;
+  ChatDetail: {
+    conversationId: string;
+    recipientId: string;
+    recipientName: string;
+  };
   UserProfileView: {
     userId: string;
     name: string;
@@ -57,7 +66,7 @@ export type MainTabParamList = {
   Home: undefined;
   Matches: undefined;
   Patterns: undefined;
-  Schedule: undefined;
+  Chat: undefined;
   Profile: undefined;
 };
 
@@ -65,6 +74,8 @@ const RootStack = createNativeStackNavigator<RootStackParamList>();
 const MainTab = createBottomTabNavigator<MainTabParamList>();
 
 function MainTabs() {
+  const { totalUnreadCount } = useChat();
+  
   return (
     <MainTab.Navigator
       screenOptions={({ route }) => ({
@@ -81,14 +92,43 @@ function MainTabs() {
             case 'Patterns':
               iconName = focused ? 'library' : 'library-outline';
               break;
-            case 'Schedule':
-              iconName = focused ? 'calendar' : 'calendar-outline';
+            case 'Chat':
+              iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
               break;
             case 'Profile':
               iconName = focused ? 'person' : 'person-outline';
               break;
             default:
               iconName = 'help-outline';
+          }
+
+          // Add badge for chat unread messages
+          if (route.name === 'Chat' && totalUnreadCount > 0) {
+            return (
+              <View style={{ position: 'relative' }}>
+                <Ionicons name={iconName} size={size} color={color} />
+                <View style={{
+                  position: 'absolute',
+                  right: -6,
+                  top: -3,
+                  backgroundColor: '#ef4444',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  paddingHorizontal: 4,
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 12,
+                    fontWeight: 'bold',
+                  }}>
+                    {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+                  </Text>
+                </View>
+              </View>
+            );
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -120,9 +160,9 @@ function MainTabs() {
         options={{ title: 'Patterns' }}
       />
       <MainTab.Screen 
-        name="Schedule" 
-        component={ScheduleScreen} 
-        options={{ title: 'Schedule' }}
+        name="Chat" 
+        component={ChatScreen} 
+        options={{ title: 'Messages' }}
       />
       <MainTab.Screen 
         name="Profile" 
@@ -332,6 +372,21 @@ export default function AppNavigator() {
               options={{
                 headerShown: true,
                 title: 'My Schedule',
+                headerStyle: {
+                  backgroundColor: '#6366f1',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <RootStack.Screen 
+              name="ChatDetail" 
+              component={ChatDetailScreen}
+              options={{
+                headerShown: true,
+                title: 'Chat',
                 headerStyle: {
                   backgroundColor: '#6366f1',
                 },
