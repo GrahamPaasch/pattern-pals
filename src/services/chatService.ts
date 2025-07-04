@@ -446,23 +446,65 @@ export class ChatService {
    */
   static async getOrCreateConversation(user1Id: string, user2Id: string): Promise<string> {
     if (!isSupabaseConfigured() || !supabase) {
-      throw new Error('Supabase not configured');
+      // For demo purposes, return a mock conversation ID
+      return `demo_conversation_${user1Id}_${user2Id}`.replace(/[^a-zA-Z0-9_]/g, '');
     }
 
     try {
-      // Call the database function to get or create conversation
-      const { data, error } = await supabase
-        .rpc('get_or_create_conversation', {
-          user1_uuid: user1Id,
-          user2_uuid: user2Id
-        });
+      // Ensure user1Id < user2Id for the check constraint
+      const [smallerId, largerId] = user1Id < user2Id ? [user1Id, user2Id] : [user2Id, user1Id];
+      
+      // First, try to find existing conversation
+      const { data: existingConv, error: findError } = await supabase
+        .from('chat_conversations')
+        .select('id')
+        .eq('user1_id', smallerId)
+        .eq('user2_id', largerId)
+        .single();
 
-      if (error) {
-        console.error('💬 Chat: Error getting/creating conversation:', error);
-        throw error;
+      if (findError && findError.code !== 'PGRST116') {
+        console.error('💬 Chat: Error finding conversation:', findError);
+        throw findError;
       }
 
-      return data;
+      if (existingConv) {
+        console.log(`💬 Chat: Found existing conversation ${existingConv.id}`);
+        return existingConv.id;
+      }
+
+      // Get user names for the conversation
+      const { data: users, error: usersError } = await supabase
+        .from('users')
+        .select('id, name')
+        .in('id', [user1Id, user2Id]);
+
+      if (usersError) {
+        console.error('💬 Chat: Error fetching user names:', usersError);
+        throw usersError;
+      }
+
+      const user1Name = users.find(u => u.id === smallerId)?.name || 'Unknown';
+      const user2Name = users.find(u => u.id === largerId)?.name || 'Unknown';
+
+      // Create new conversation
+      const { data: newConv, error: createError } = await supabase
+        .from('chat_conversations')
+        .insert({
+          user1_id: smallerId,
+          user2_id: largerId,
+          user1_name: user1Name,
+          user2_name: user2Name
+        })
+        .select('id')
+        .single();
+
+      if (createError) {
+        console.error('💬 Chat: Error creating conversation:', createError);
+        throw createError;
+      }
+
+      console.log(`💬 Chat: Created new conversation ${newConv.id}`);
+      return newConv.id;
 
     } catch (error) {
       console.error('💬 Chat: Error in getOrCreateConversation:', error);
