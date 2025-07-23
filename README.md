@@ -1,11 +1,12 @@
 # PatternPals 🤹‍♂️
 
-A cross-platform mobile app built with React Native and Expo that helps jugglers find compatible partners for passing patterns.
+A cross-platform mobile app built with React Native and Expo that serves as a centralized pattern library with smart juggling recommendations.
 
 ## 🎯 Features
 
-### ✅ **Fully Implemented & Working**
+-### ✅ **Fully Implemented & Working**
 
+- **Pattern Recommendations**: Get quick suggestions based on your skills
 - **Smart Matching**: Find partners based on skill level, availability, and pattern preferences
 - **Pattern Library**: Browse and track 20+ passing patterns with difficulty levels and user contributions  
 - **Pattern Management**: Mark patterns as known, want to learn, or want to avoid with persistent storage
@@ -220,5 +221,5 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**Ready to find your juggling partner? Let's get passing! 🤹‍♀️**
-Bringing jugglers together through smart pairing, scheduling, and pattern recommendations.
+**Ready to discover your next juggling pattern? Let's get juggling! 🤹‍♀️**
+Sharing the world's juggling knowledge with quick suggestions and a growing pattern library.
