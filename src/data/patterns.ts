@@ -490,3 +490,34 @@ const calculatePatternSimilarity = (pattern1: Pattern, pattern2: Pattern): numbe
 
   return similarity;
 };
+
+export interface SuggestPatternOptions {
+  difficulty?: string;
+  props?: string[];
+  jugglers?: number;
+}
+
+export const getRandomPattern = (
+  options: SuggestPatternOptions = {}
+): Pattern | undefined => {
+  const { difficulty, props, jugglers } = options;
+  let filtered = patterns;
+
+  if (difficulty) {
+    filtered = filtered.filter(
+      p => p.difficulty.toLowerCase() === difficulty.toLowerCase()
+    );
+  }
+
+  if (props && props.length > 0) {
+    filtered = filtered.filter(p => props.every(prop => p.props.includes(prop)));
+  }
+
+  if (jugglers !== undefined) {
+    filtered = filtered.filter(p => p.requiredJugglers === jugglers);
+  }
+
+  if (filtered.length === 0) return undefined;
+  const index = Math.floor(Math.random() * filtered.length);
+  return filtered[index];
+};
