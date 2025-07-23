@@ -6,11 +6,13 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { useUserPatterns } from '../hooks/useUserPatterns';
 import { patterns } from '../data/patterns';
+import { PatternIntelligenceService } from '../services';
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
@@ -32,6 +34,30 @@ export default function HomeScreen() {
     if (hour < 12) return 'Good morning';
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
+  };
+
+  const handleSuggestPattern = () => {
+    if (!userProfile) return;
+    const [recommendation] = PatternIntelligenceService.getSmartRecommendations(
+      userProfile,
+      1
+    );
+
+    if (recommendation) {
+      Alert.alert(
+        'Suggested Pattern',
+        `${recommendation.name}\n\n${recommendation.description}`,
+        [
+          {
+            text: 'View Details',
+            onPress: () => navigation.navigate('Patterns'),
+          },
+          { text: 'Close', style: 'cancel' },
+        ]
+      );
+    } else {
+      Alert.alert('No suggestion', 'Keep practicing your favorites!');
+    }
   };
 
   const recentActivity = [
@@ -69,25 +95,25 @@ export default function HomeScreen() {
             {getTimeOfDayGreeting()}, {userProfile.name}! 🤹‍♂️
           </Text>
           <Text style={styles.subText}>
-            Ready to find your next juggling partner?
+            Looking for a new pattern to try?
           </Text>
         </View>
 
         <View style={styles.quickActions}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => navigation.navigate('Matches')}
+            onPress={handleSuggestPattern}
           >
-            <Text style={styles.actionIcon}>🔍</Text>
+            <Text style={styles.actionIcon}>🎲</Text>
             <View style={styles.actionContent}>
-              <Text style={styles.actionTitle}>Find Matches</Text>
-              <Text style={styles.actionSubtitle}>Discover compatible jugglers nearby</Text>
+              <Text style={styles.actionTitle}>Suggest Pattern</Text>
+              <Text style={styles.actionSubtitle}>Get a quick recommendation</Text>
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionCard}
             onPress={() => navigation.navigate('Patterns')}
           >
@@ -95,6 +121,17 @@ export default function HomeScreen() {
             <View style={styles.actionContent}>
               <Text style={styles.actionTitle}>Browse Patterns</Text>
               <Text style={styles.actionSubtitle}>Explore {patterns.length} passing patterns</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={() => navigation.navigate('Matches')}
+          >
+            <Text style={styles.actionIcon}>🔍</Text>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionTitle}>Find Matches</Text>
+              <Text style={styles.actionSubtitle}>Discover compatible jugglers nearby</Text>
             </View>
           </TouchableOpacity>
 
