@@ -14,7 +14,6 @@ import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import ProfileEditScreen from '../screens/ProfileEditScreen';
 import AvailabilityManagementScreen from '../screens/AvailabilityManagementScreen';
-import MatchesScreen from '../screens/MatchesScreen';
 import PatternsScreen from '../screens/PatternsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import SessionSchedulingScreen from '../screens/SessionSchedulingScreen';
@@ -64,7 +63,6 @@ export type RootStackParamList = {
 
 export type MainTabParamList = {
   Home: undefined;
-  Matches: undefined;
   Patterns: undefined;
   Chat: undefined;
   Profile: undefined;
@@ -85,9 +83,6 @@ function MainTabs() {
           switch (route.name) {
             case 'Home':
               iconName = focused ? 'home' : 'home-outline';
-              break;
-            case 'Matches':
-              iconName = focused ? 'people' : 'people-outline';
               break;
             case 'Patterns':
               iconName = focused ? 'library' : 'library-outline';
@@ -148,11 +143,6 @@ function MainTabs() {
         name="Home" 
         component={HomeScreen} 
         options={{ title: 'PatternPals' }}
-      />
-      <MainTab.Screen 
-        name="Matches" 
-        component={MatchesScreen} 
-        options={{ title: 'Matches' }}
       />
       <MainTab.Screen 
         name="Patterns" 

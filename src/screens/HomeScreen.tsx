@@ -71,16 +71,8 @@ export default function HomeScreen() {
     },
     {
       id: '2',
-      type: 'match_found',
-      title: 'New match found',
-      subtitle: 'Sarah Johnson - 87% compatibility',
-      time: '1 day ago',
-      icon: '👥',
-    },
-    {
-      id: '3',
-      type: 'session_completed',
-      title: 'Practice session completed',
+      type: 'pattern_practiced',
+      title: 'Great practice session',
       subtitle: 'With Alex Chen - 90 minutes',
       time: '3 days ago',
       icon: '🎯',
@@ -125,28 +117,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => navigation.navigate('Matches')}
-          >
-            <Text style={styles.actionIcon}>🔍</Text>
-            <View style={styles.actionContent}>
-              <Text style={styles.actionTitle}>Find Matches</Text>
-              <Text style={styles.actionSubtitle}>Discover compatible jugglers nearby</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.actionCard}
-            onPress={() => navigation.navigate('SessionScheduling')}
-          >
-            <Text style={styles.actionIcon}>📅</Text>
-            <View style={styles.actionContent}>
-              <Text style={styles.actionTitle}>Schedule Session</Text>
-              <Text style={styles.actionSubtitle}>Plan your next practice</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
             style={styles.actionCard}
             onPress={() => navigation.navigate('Profile')}
           >

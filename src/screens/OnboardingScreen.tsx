@@ -41,8 +41,8 @@ export default function OnboardingScreen({ navigation }: Props) {
             <Text style={styles.featureText}>Learn new passing patterns</Text>
           </View>
           <View style={styles.feature}>
-            <Text style={styles.featureIcon}>🕐</Text>
-            <Text style={styles.featureText}>Schedule practice sessions</Text>
+            <Text style={styles.featureIcon}>⭐</Text>
+            <Text style={styles.featureText}>Save favorite patterns</Text>
           </View>
           <View style={styles.feature}>
             <Text style={styles.featureIcon}>🔔</Text>
