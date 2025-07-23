@@ -1,20 +1,19 @@
 # PatternPals 🤹‍♂️
 
-A cross-platform mobile app built with React Native and Expo that helps jugglers find compatible partners for passing patterns.
+A cross-platform mobile app built with React Native and Expo that serves as a centralized pattern library with smart juggling recommendations.
 
 ## 🎯 Features
 
-### ✅ **Fully Implemented & Working**
+-### ✅ **Fully Implemented & Working**
 
-- **Smart Matching**: Find partners based on skill level, availability, and pattern preferences
+- **Pattern Recommendations**: Get quick suggestions based on your skills
 - **Pattern Library**: Browse and track 20+ passing patterns with difficulty levels and user contributions  
 - **Pattern Management**: Mark patterns as known, want to learn, or want to avoid with persistent storage
 - **User Authentication**: Complete sign-up/sign-in flow with profile creation
 - **Profile Management**: Detailed user profiles with experience levels, preferences, and statistics
 - **Availability Management**: Set weekly availability with time slots
-- **Session Scheduling**: Schedule practice sessions with partners including location and notes
 - **Real-Time Chat**: In-app messaging system between connected users with live updates
-- **Notifications System**: Real-time notifications for matches, sessions, and announcements
+- **Notifications System**: Real-time notifications for pattern updates and announcements
 - **Settings & Preferences**: Comprehensive settings with notification controls and privacy options
 - **Help & Support**: Built-in help system with FAQ and support contacts
 - **Navigation**: Seamless navigation between all app features
@@ -57,7 +56,7 @@ A cross-platform mobile app built with React Native and Expo that helps jugglers
 
 ### **What Works Out of the Box:**
 
-- ✅ **Complete User Flow**: Sign up → Create Profile → Browse Patterns → Find Matches → Schedule Sessions
+- ✅ **Complete User Flow**: Sign up → Create Profile → Browse Patterns → Track Progress
 - ✅ **Data Persistence**: All your progress and preferences are saved
 - ✅ **Full Navigation**: Every screen and feature is connected and working
 - ✅ **Mock Backend**: Realistic data simulation for testing all features
@@ -71,11 +70,6 @@ A cross-platform mobile app built with React Native and Expo that helps jugglers
 - User progress statistics (patterns known, learning, availability)
 - Recent activity feed
 
-### **👥 Matches Screen**
-- Browse compatible juggling partners
-- Match compatibility scores based on shared patterns
-- Filter between "Discover" and "Connection Requests" tabs
-- Connect with other jugglers
 
 ### **📚 Patterns Screen**
 - Complete library of passing patterns with descriptions
@@ -84,7 +78,7 @@ A cross-platform mobile app built with React Native and Expo that helps jugglers
 - Pattern details including required jugglers and props
 
 ### **🔔 Notifications Screen**
-- Real-time notifications for matches, sessions, and events
+- Real-time notifications for pattern updates and events
 - Filter notifications by type (All/Unread)
 - Mark individual or all notifications as read
 - Pull-to-refresh functionality
@@ -97,7 +91,6 @@ A cross-platform mobile app built with React Native and Expo that helps jugglers
 ### **⚙️ Additional Screens**
 - **Profile Edit**: Update personal information and preferences
 - **Availability Management**: Set weekly time slots for juggling
-- **Session Scheduling**: Plan practice sessions with partners
 - **Settings**: Notification preferences and app configuration
 - **Help & Support**: FAQ, contact support, and resources
 
@@ -153,9 +146,8 @@ All features are now powered by a real-time Supabase backend:
 2. **Complete Profile**: Set your experience level and preferences  
 3. **Browse Patterns**: Search and mark patterns as known/learning
 4. **Check Notifications**: See mock notifications and mark as read
-5. **Schedule Sessions**: Plan practice sessions with date/time/location
-6. **Manage Availability**: Set your weekly juggling schedule
-7. **Explore Settings**: Configure notifications and preferences
+5. **Manage Availability**: Set your weekly juggling schedule
+6. **Explore Settings**: Configure notifications and preferences
 
 ## 📋 Roadmap
 
@@ -165,9 +157,7 @@ All features are now powered by a real-time Supabase backend:
 - [x] Pattern library with search/filter functionality
 - [x] User pattern management (known/want to learn/avoid)
 - [x] Persistent data storage with AsyncStorage
-- [x] Mock matching system with compatibility scores
 - [x] Notifications system with real-time updates
-- [x] Session scheduling with date/time/location
 - [x] Availability management with weekly time slots
 - [x] Settings and preferences management
 - [x] Help and support system
@@ -220,5 +210,5 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**Ready to find your juggling partner? Let's get passing! 🤹‍♀️**
-Bringing jugglers together through smart pairing, scheduling, and pattern recommendations.
+**Ready to discover your next juggling pattern? Let's get juggling! 🤹‍♀️**
+Sharing the world's juggling knowledge with quick suggestions and a growing pattern library.

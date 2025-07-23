@@ -27,22 +27,22 @@ export default function OnboardingScreen({ navigation }: Props) {
           <Text style={styles.logoText}>🤹‍♂️</Text>
           <Text style={styles.title}>PatternPals</Text>
           <Text style={styles.subtitle}>
-            Find your perfect juggling partner
+            Discover your next juggling pattern
           </Text>
         </View>
 
         <View style={styles.featuresContainer}>
           <View style={styles.feature}>
-            <Text style={styles.featureIcon}>👥</Text>
-            <Text style={styles.featureText}>Match with compatible jugglers</Text>
+            <Text style={styles.featureIcon}>🎲</Text>
+            <Text style={styles.featureText}>Quick pattern suggestions</Text>
           </View>
           <View style={styles.feature}>
             <Text style={styles.featureIcon}>📚</Text>
             <Text style={styles.featureText}>Learn new passing patterns</Text>
           </View>
           <View style={styles.feature}>
-            <Text style={styles.featureIcon}>🕐</Text>
-            <Text style={styles.featureText}>Schedule practice sessions</Text>
+            <Text style={styles.featureIcon}>⭐</Text>
+            <Text style={styles.featureText}>Save favorite patterns</Text>
           </View>
           <View style={styles.feature}>
             <Text style={styles.featureIcon}>🔔</Text>
