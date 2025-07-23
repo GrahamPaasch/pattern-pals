@@ -11,7 +11,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { useUserPatterns } from '../hooks/useUserPatterns';
-import { patterns } from '../data/patterns';
+import { patterns, getRandomPattern } from '../data/patterns';
 import { PatternIntelligenceService } from '../services';
 
 export default function HomeScreen() {
@@ -37,11 +37,17 @@ export default function HomeScreen() {
   };
 
   const handleSuggestPattern = () => {
-    if (!userProfile) return;
-    const [recommendation] = PatternIntelligenceService.getSmartRecommendations(
-      userProfile,
-      1
-    );
+    let recommendation;
+    if (userProfile) {
+      [recommendation] = PatternIntelligenceService.getSmartRecommendations(
+        userProfile,
+        1
+      );
+    }
+
+    if (!recommendation) {
+      recommendation = getRandomPattern();
+    }
 
     if (recommendation) {
       Alert.alert(
@@ -68,23 +74,7 @@ export default function HomeScreen() {
       subtitle: 'You marked "6 Count" as known',
       time: '2 hours ago',
       icon: '✅',
-    },
-    {
-      id: '2',
-      type: 'match_found',
-      title: 'New match found',
-      subtitle: 'Sarah Johnson - 87% compatibility',
-      time: '1 day ago',
-      icon: '👥',
-    },
-    {
-      id: '3',
-      type: 'session_completed',
-      title: 'Practice session completed',
-      subtitle: 'With Alex Chen - 90 minutes',
-      time: '3 days ago',
-      icon: '🎯',
-    },
+    }
   ];
 
   return (
@@ -124,27 +114,6 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => navigation.navigate('Matches')}
-          >
-            <Text style={styles.actionIcon}>🔍</Text>
-            <View style={styles.actionContent}>
-              <Text style={styles.actionTitle}>Find Matches</Text>
-              <Text style={styles.actionSubtitle}>Discover compatible jugglers nearby</Text>
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.actionCard}
-            onPress={() => navigation.navigate('SessionScheduling')}
-          >
-            <Text style={styles.actionIcon}>📅</Text>
-            <View style={styles.actionContent}>
-              <Text style={styles.actionTitle}>Schedule Session</Text>
-              <Text style={styles.actionSubtitle}>Plan your next practice</Text>
-            </View>
-          </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.actionCard}
